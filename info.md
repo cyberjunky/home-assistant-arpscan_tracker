@@ -52,7 +52,7 @@ and you need to figure out which one to use for the scans, you can specify the c
 
 Example:
 ```yaml
-" --interface=enp2s0 192.168.178.0/24 -g"
+scan_options: " --interface=enp2s0 192.168.178.0/24 -g"
 ```
 
 ### Changes
