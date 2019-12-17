@@ -1,0 +1,6 @@
+{
+  "name": "Arpscan Device Tracker",
+  "country": "NL",
+  "render_readme": false,
+  "domains": ["device_tracker"]
+}
