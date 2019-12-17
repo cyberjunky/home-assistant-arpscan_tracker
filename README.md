@@ -1,9 +1,10 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)  [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
-# Home-Assistant Custom Component
-Custom Components for Home-Assistant (https://home-assistant.io)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)  [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
 
-## Arpscan Device Tracker Component
+# Arpscan Device Tracker Component
 This component tracks devices using the arp-scan linux command, it's very fast, and reasonably accurate.
+
+## Home-Assistant Custom Component
+This is a Custom Component for Home-Assistant (https://home-assistant.io)
 
 ### Installation
 
