@@ -1,0 +1,10 @@
+{
+  "domain": "arpscan_tracker",
+  "name": "Arpscan tracker",
+  "documentation": "https://github.com/cyberjunky/home-assistant-arpscan_tracker",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [
+    "@cyberjunky"
+  ]
+}
