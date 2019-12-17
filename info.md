@@ -5,8 +5,6 @@ Custom Components for Home-Assistant (https://home-assistant.io)
 ## Arpscan Device Tracker Component
 This component tracks devices using the arp-scan linux command, it's very fast, and reasonably accurate.
 
-[![Buy me a coffee via PayPal](https://cdn.rawgit.com/twolfson/paypal-github-button/1.0.0/dist/button.svg)](https://www.paypal.me/cyberjunkynl/)
-
 {% if not installed %}
 
 ### Installation
@@ -59,3 +57,6 @@ Example:
 
 ### Changes
 * first release for hacs
+
+### Donation
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
