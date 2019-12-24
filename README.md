@@ -8,6 +8,13 @@ This is a Custom Component for Home-Assistant (https://home-assistant.io)
 
 ### Installation
 
+## HACS - Recommended
+- Have [HACS](https://hacs.xyz) installed, this will allow you to easily update.
+- Add `https://github.com/cyberjunky/home-assistant-arpscan_tracker` as a [custom repository](https://hacs.xyz/docs/navigation/repository) with Type: Integration
+- Click Install under "Arpscan Device Tracker" integration.
+- Restart Home-Assistant.
+
+## Manual
 - Copy directory `custom_components/arpscan_tracker` to your `<config dir>/custom_components` directory.
 - Install the arp-scan command and set it's sticky bit, so it can be run as root.
 
