@@ -24,7 +24,7 @@ $ sudo chmod +s /usr/bin/arp-scan
 - Configure with config below.
 - Restart Home-Assistant.
 
-### Usage
+## Usage
 To use this component in your installation, add the following to your `configuration.yaml` file:
 
 ```yaml
@@ -48,7 +48,7 @@ Configuration variables:
 - **exclude** (*Optional*): List of IP addresses to skip tracking for.
 - **scan_options** (*Optional*): Configurable scan options for arp-scan. (default is `-l -g -t1 -q`)
 
-### Network adapter
+## Network adapter
 Sometimes your host has more than one network adapter (on Hass.io for example),
 and you need to figure out which one to use for the scans, you can specify the correct one using scan_options.
 
@@ -56,5 +56,5 @@ Example:
 ```yaml
 scan_options: " --interface=enp2s0 192.168.178.0/24 -g"
 ```
-### Donation
+## Donation
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
