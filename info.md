@@ -8,7 +8,7 @@ This is a Custom Component for Home-Assistant (https://home-assistant.io) that t
 ### Installation
 
 - Install this integration using HACS.
-- Configure using configuration instuctions below.
+- Configure using configuration instructions below.
 - Restart Home-Assistant.
 
 {% endif %}
