@@ -9,6 +9,7 @@ This is a Custom Component for Home-Assistant (https://home-assistant.io) that t
 - Have [HACS](https://hacs.xyz) installed, this will allow you to easily manage and track updates.
 - Search for 'Arpscan'.
 - Click Install under "Arpscan Device Tracker" integration.
+- Configure using the configuration instuctions below.
 - Restart Home-Assistant.
 
 ### Manual
