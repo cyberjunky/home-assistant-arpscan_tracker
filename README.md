@@ -1,20 +1,17 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)  [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)  [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
 
 # Arpscan Device Tracker Component
-This component tracks devices using the arp-scan linux command, it's very fast, and reasonably accurate.
+This is a Custom Component for Home-Assistant (https://home-assistant.io) that tracks devices using the arp-scan linux command, it's very fast, and reasonably accurate.
 
-## Home-Assistant Custom Component
-This is a Custom Component for Home-Assistant (https://home-assistant.io)
+## Installation
 
-### Installation
-
-## HACS - Recommended
-- Have [HACS](https://hacs.xyz) installed, this will allow you to easily update.
-- Add `https://github.com/cyberjunky/home-assistant-arpscan_tracker` as a [custom repository](https://hacs.xyz/docs/navigation/repository) with Type: Integration
+### HACS - Recommended
+- Have [HACS](https://hacs.xyz) installed, this will allow you to easily manage and track updates.
+- Search for 'Arpscan'.
 - Click Install under "Arpscan Device Tracker" integration.
 - Restart Home-Assistant.
 
-## Manual
+### Manual
 - Copy directory `custom_components/arpscan_tracker` to your `<config dir>/custom_components` directory.
 - Install the arp-scan command and set it's sticky bit, so it can be run as root.
 
@@ -58,9 +55,5 @@ Example:
 ```yaml
 scan_options: " --interface=enp2s0 192.168.178.0/24 -g"
 ```
-
-### Changes
-* first release for hacs
-
 ### Donation
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
