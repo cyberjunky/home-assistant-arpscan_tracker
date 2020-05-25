@@ -72,6 +72,14 @@ class ArpScanDeviceScanner(DeviceScanner):
         return mac.replace(':', '')
 
 
+    def get_extra_attributes(self, device):
+        """Return the IP of the given device."""
+        filter_ip = next(
+            (result.ip for result in self.last_results if result.mac == device), None
+        )
+        return {"ip": filter_ip}
+    
+    
     @Throttle(MIN_TIME_BETWEEN_SCANS)
     def _update_info(self):
         """
