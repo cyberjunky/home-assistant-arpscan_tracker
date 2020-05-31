@@ -52,9 +52,13 @@ Configuration variables:
 Sometimes your host has more than one network adapter (on Hass.io for example),
 and you need to figure out which one to use for the scans, you can specify the correct one using scan_options.
 
-Example:
+Examples:
 ```yaml
 scan_options: " --interface=enp2s0 192.168.178.0/24 -g"
+```
+LAN interface:
+```yaml
+scan_options: " --interface=eth0 192.168.1.0/24 -g"
 ```
 ## Donation
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
