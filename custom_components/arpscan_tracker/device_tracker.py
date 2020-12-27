@@ -104,10 +104,9 @@ class ArpScanDeviceScanner(DeviceScanner):
 
             parts = line.split()
             ipv4 = parts[0]
-            for exclude in exclude_hosts:
-                if exclude == ipv4:
-                    _LOGGER.debug("Excluded %s", exclude)
-                    continue
+            if ipv4 in exclude_hosts:
+                _LOGGER.debug("Excluded %s", ipv4)
+                continue
 
             mac = parts[1]
             last_results.append(Device(mac, mac.replace(':', ''), ipv4, now))
