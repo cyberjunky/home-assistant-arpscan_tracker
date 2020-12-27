@@ -21,12 +21,15 @@ from homeassistant.util import Throttle
 _LOGGER = logging.getLogger(__name__)
 
 CONF_EXCLUDE = 'exclude'
+CONF_INCLUDE = 'include'
 CONF_OPTIONS = 'scan_options'
 DEFAULT_OPTIONS = '-l -g -t1 -q'
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=5)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Optional(CONF_INCLUDE, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_EXCLUDE, default=[]):
         vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_OPTIONS, default=DEFAULT_OPTIONS):
@@ -45,12 +48,14 @@ class ArpScanDeviceScanner(DeviceScanner):
     """This class scans for devices using arp-scan."""
 
     exclude = []
+    include = []
 
     def __init__(self, config):
         """Initialize the scanner."""
         self.last_results = []
 
         self.exclude = config[CONF_EXCLUDE]
+        self.include = config[CONF_INCLUDE]
         self._options = config[CONF_OPTIONS]
 
         self.success_init = self._update_info()
@@ -92,6 +97,11 @@ class ArpScanDeviceScanner(DeviceScanner):
 
         last_results = []
         exclude_hosts = self.exclude
+        include_hosts = self.include
+
+        """ignore exclude if include present"""
+        if include_hosts:
+            exclude_hosts = []
 
         scandata = subprocess.getoutput("arp-scan "+options)
         _LOGGER.debug("Scandata %s", scandata)
@@ -104,6 +114,11 @@ class ArpScanDeviceScanner(DeviceScanner):
 
             parts = line.split()
             ipv4 = parts[0]
+
+            if not ipv4 in include_hosts:
+                _LOGGER.debug("Excluded %s", ipv4)
+                continue
+
             if ipv4 in exclude_hosts:
                 _LOGGER.debug("Excluded %s", ipv4)
                 continue
