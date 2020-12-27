@@ -17,7 +17,7 @@ This is a Custom Component for Home-Assistant (https://home-assistant.io) that t
 To use this component in your installation, add the following to your `configuration.yaml` file:
 
 ```yaml
-# Example configuration.yaml entry
+# Example configuration.yaml entry with exclude
 
 device_tracker:
   - platform: arpscan_tracker
@@ -28,6 +28,20 @@ device_tracker:
       - 192.168.178.1
       - 192.168.178.3
 ```
+or
+
+```yaml
+# Example configuration.yaml entry with include
+
+device_tracker:
+  - platform: arpscan_tracker
+    interval_seconds: 15
+    consider_home: 60
+    track_new_devices: false
+    include:
+      - 192.168.178.1
+      - 192.168.178.3
+```
 
 Configuration variables:
 
@@ -35,6 +49,7 @@ Configuration variables:
 - **consider_home** (*Optional*): Seconds to marking device as 'not home' after not being seen (default = 180)
 - **track_new_device** (*Optional*): If new discovered devices are tracked by default. (default = True)
 - **exclude** (*Optional*): List of IP addresses to skip tracking for.
+- **include** (*Optional*): List of IP addresses to track only them. If specified, **exclude** will be ignored
 - **scan_options** (*Optional*): Configurable scan options for arp-scan. (default is `-l -g -t1 -q`)
 
 ## Network adapter
