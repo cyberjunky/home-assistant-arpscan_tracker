@@ -73,7 +73,7 @@ class ArpScanDeviceScanner(DeviceScanner):
 
     def get_device_name(self, mac):
         """Return the name of the given device."""
-        
+
         return mac.replace(':', '')
 
 
@@ -115,9 +115,10 @@ class ArpScanDeviceScanner(DeviceScanner):
             parts = line.split()
             ipv4 = parts[0]
 
-            if not ipv4 in include_hosts:
-                _LOGGER.debug("Excluded %s", ipv4)
-                continue
+            if include_hosts:
+                if not ipv4 in include_hosts:
+                    _LOGGER.debug("Excluded %s", ipv4)
+                    continue
 
             if ipv4 in exclude_hosts:
                 _LOGGER.debug("Excluded %s", ipv4)
