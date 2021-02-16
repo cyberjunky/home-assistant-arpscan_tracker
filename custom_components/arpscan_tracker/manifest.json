@@ -1,7 +1,9 @@
 {
   "domain": "arpscan_tracker",
   "name": "Arpscan tracker",
+  "version": "1.0.6",
   "documentation": "https://github.com/cyberjunky/home-assistant-arpscan_tracker",
+  "issue_tracker": "https://github.com/cyberjunky/home-assistant-arpscan_tracker/issues",
   "requirements": [],
   "dependencies": [],
   "codeowners": [
