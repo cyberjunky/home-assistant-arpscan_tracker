@@ -75,5 +75,17 @@ LAN interface:
 ```yaml
 scan_options: " --interface=eth0 192.168.1.0/24 -g"
 ```
+
+## Debugging
+
+Add the relevant lines below to the `configuration.yaml`:
+
+```yaml
+logger:
+  default: info
+  logs:
+    homeassistant.components.arpscan_tracker: debug
+```
+
 ## Donation
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/cyberjunkynl/)
