@@ -84,7 +84,7 @@ Add the relevant lines below to the `configuration.yaml`:
 logger:
   default: info
   logs:
-    homeassistant.components.arpscan_tracker: debug
+    custom_components.arpscan_tracker: debug
 ```
 
 ## Donation
