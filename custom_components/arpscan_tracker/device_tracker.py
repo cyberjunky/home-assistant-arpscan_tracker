@@ -2,13 +2,14 @@
 Support for scanning a network with arp-scan.
 
 For more details about this platform, please refer to the documentation at
-https://github.com/cyberjunky/hass-arpscan_tracker/
+https://github.com/cyberjunky/home-assistant-arpscan_tracker/
 """
 import logging
 import re
 import subprocess
 from collections import namedtuple
 from datetime import timedelta
+import os
 
 import voluptuous as vol
 
@@ -43,7 +44,6 @@ def get_scanner(hass, config):
 
 Device = namedtuple('Device', ['mac', 'name', 'ip', 'last_update'])
 
-
 class ArpScanDeviceScanner(DeviceScanner):
     """This class scans for devices using arp-scan."""
 
@@ -58,8 +58,11 @@ class ArpScanDeviceScanner(DeviceScanner):
         self.include = config[CONF_INCLUDE]
         self._options = config[CONF_OPTIONS]
 
+        _LOGGER.debug("Installing arp-scan package")
+        proc = subprocess.Popen('apk add arp-scan', shell=True, stdin=None, stdout=None, stderr=None, executable="/bin/bash")
+        proc.wait()
+
         self.success_init = self._update_info()
-        _LOGGER.debug("Scanner initialized")
 
 
     def scan_devices(self):
@@ -131,3 +134,4 @@ class ArpScanDeviceScanner(DeviceScanner):
 
         _LOGGER.debug("Arpscan successful")
         return True
+ 
