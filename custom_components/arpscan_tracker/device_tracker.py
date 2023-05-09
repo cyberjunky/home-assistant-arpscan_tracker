@@ -9,7 +9,6 @@ import re
 import subprocess
 from collections import namedtuple
 from datetime import timedelta
-import os
 
 import voluptuous as vol
 
