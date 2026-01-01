@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Determine the Home Assistant command to use (need full path for sudo)
+if command -v hass &> /dev/null; then
+  HASS_CMD="$(which hass)"
+else
+  HASS_CMD="$(which python3) -m homeassistant"
+fi
+
+if [ ! -f "${PWD}/config/configuration.yaml" ]; then
+  mkdir -p "${PWD}/config"
+  ${HASS_CMD} --config "${PWD}/config" --script ensure_config
+  echo "Updating default configuration."
+  echo "
+logger:
+  default: info
+  logs:
+    custom_components.arpscan_tracker: debug"
+fi
+
+# Set the python path to include our custom_components directory
+export PYTHONPATH="${PYTHONPATH}:${PWD}/custom_components"
+
+# Start Home Assistant with sudo for raw socket access (ARP scanning)
+sudo -E ${HASS_CMD} --config "${PWD}/config" --debug

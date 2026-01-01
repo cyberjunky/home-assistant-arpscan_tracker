@@ -1,136 +1,198 @@
-"""
-Support for scanning a network with arp-scan.
+"""Device tracker platform for ARP-Scan."""
 
-For more details about this platform, please refer to the documentation at
-https://github.com/cyberjunky/home-assistant-arpscan_tracker/
-"""
+from __future__ import annotations
+
 import logging
-import re
-import subprocess
-from collections import namedtuple
-from datetime import timedelta
+from datetime import datetime
+from typing import Any
 
-import voluptuous as vol
-
-import homeassistant.helpers.config_validation as cv
+from homeassistant.components.device_tracker import ScannerEntity, SourceType
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 import homeassistant.util.dt as dt_util
-from homeassistant.components.device_tracker import (
-    DOMAIN, PLATFORM_SCHEMA, DeviceScanner)
-from homeassistant.util import Throttle
+
+from .const import (
+    ATTR_IP,
+    ATTR_LAST_SEEN,
+    ATTR_MAC,
+    ATTR_VENDOR,
+    CONF_CONSIDER_HOME,
+    CONF_INTERFACE,
+    DATA_COORDINATOR,
+    DEFAULT_CONSIDER_HOME,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_EXCLUDE = 'exclude'
-CONF_INCLUDE = 'include'
-CONF_OPTIONS = 'scan_options'
-DEFAULT_OPTIONS = '-l -g -t1 -q'
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=5)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up device tracker entities from a config entry."""
+    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
+    consider_home = entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
+    interface = entry.data.get(CONF_INTERFACE, "unknown")
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional(CONF_INCLUDE, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_EXCLUDE, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_OPTIONS, default=DEFAULT_OPTIONS):
-        cv.string
-})
+    # Track which devices we've already created entities for
+    tracked_macs: set[str] = set()
 
+    @callback
+    def async_add_new_entities() -> None:
+        """Add entities for newly discovered devices."""
+        new_entities: list[ArpScanDeviceTracker] = []
+        
+        for mac, device_data in coordinator.data.items():
+            if mac not in tracked_macs:
+                tracked_macs.add(mac)
+                new_entities.append(
+                    ArpScanDeviceTracker(
+                        coordinator=coordinator,
+                        mac=mac,
+                        consider_home=consider_home,
+                        interface=interface,
+                        entry_id=entry.entry_id,
+                    )
+                )
+                _LOGGER.debug("Adding new device tracker for MAC %s", mac)
 
-def get_scanner(hass, config):
-    """Validate the configuration and return a ArpScan scanner."""
-    return ArpScanDeviceScanner(config[DOMAIN])
+        if new_entities:
+            async_add_entities(new_entities)
 
-Device = namedtuple('Device', ['mac', 'name', 'ip', 'last_update'])
+    # Add entities for initial data
+    async_add_new_entities()
 
-class ArpScanDeviceScanner(DeviceScanner):
-    """This class scans for devices using arp-scan."""
-
-    exclude = []
-    include = []
-
-    def __init__(self, config):
-        """Initialize the scanner."""
-        self.last_results = []
-
-        self.exclude = config[CONF_EXCLUDE]
-        self.include = config[CONF_INCLUDE]
-        self._options = config[CONF_OPTIONS]
-
-        _LOGGER.debug("Installing arp-scan package")
-        proc = subprocess.Popen('apk add arp-scan', shell=True, stdin=None, stdout=None, stderr=None, executable="/bin/bash")
-        proc.wait()
-
-        self.success_init = self._update_info()
-
-
-    def scan_devices(self):
-        """Scan for new devices and return a list with found device IDs."""
-        self._update_info()
-
-        _LOGGER.debug("arpscan last results %s", self.last_results)
-
-        return [device.mac for device in self.last_results]
+    # Listen for coordinator updates to add new devices
+    entry.async_on_unload(
+        coordinator.async_add_listener(async_add_new_entities)
+    )
 
 
-    def get_device_name(self, mac):
-        """Return the name of the given device."""
+class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
+    """Representation of a device tracked via ARP scan."""
 
-        return mac.replace(':', '')
+    _attr_has_entity_name = True
 
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator,
+        mac: str,
+        consider_home: int,
+        interface: str,
+        entry_id: str,
+    ) -> None:
+        """Initialize the device tracker."""
+        super().__init__(coordinator)
+        
+        self._mac = mac.lower()
+        self._consider_home = consider_home
+        self._interface = interface
+        self._entry_id = entry_id
+        self._last_seen: datetime | None = None
+        
+        # Get initial device data
+        device_data = coordinator.data.get(self._mac, {})
+        ip_address = device_data.get("ip", "unknown")
+        vendor = device_data.get("vendor", "Unknown")
+        hostname = device_data.get("hostname")
+        
+        # Format MAC for entity_id (remove colons)
+        mac_clean = self._mac.replace(":", "")
+        
+        # Entity ID uses MAC address (e.g., device_tracker.arpscan_tracker_1c697a658c2)
+        self._attr_unique_id = f"{DOMAIN}_{mac_clean}"
+        
+        # Display name: hostname if known, otherwise IP address
+        if hostname:
+            self._attr_name = hostname
+        else:
+            self._attr_name = ip_address
+        
+        # Store for later reference
+        self._ip_address = ip_address
+        self._hostname = hostname
+        
+        # Update last seen on init if device is in data
+        if self._mac in coordinator.data:
+            self._last_seen = dt_util.utcnow()
 
-    def get_extra_attributes(self, device):
-        """Return the IP of the given device."""
-        filter_ip = next(
-            (result.ip for result in self.last_results if result.mac == device), None
-        )
-        return {"ip": filter_ip}
+    @property
+    def source_type(self) -> SourceType:
+        """Return the source type."""
+        return SourceType.ROUTER
 
+    @property
+    def is_connected(self) -> bool:
+        """Return True if the device is currently connected."""
+        # Check if device is in latest scan results
+        if self._mac in self.coordinator.data:
+            self._last_seen = dt_util.utcnow()
+            return True
+        
+        # Check if device was seen within consider_home window
+        if self._last_seen:
+            time_diff = (dt_util.utcnow() - self._last_seen).total_seconds()
+            if time_diff <= self._consider_home:
+                return True
+        
+        return False
 
-    @Throttle(MIN_TIME_BETWEEN_SCANS)
-    def _update_info(self):
-        """
-        Scan the network for devices.
-        Returns boolean if scanning successful.
-        """
-        _LOGGER.debug("Scanning...")
+    @property
+    def mac_address(self) -> str:
+        """Return the MAC address."""
+        return self._mac
 
-        options = self._options
+    @property
+    def ip_address(self) -> str | None:
+        """Return the IP address."""
+        if self._mac in self.coordinator.data:
+            return self.coordinator.data[self._mac].get("ip")
+        return None
 
-        last_results = []
-        exclude_hosts = self.exclude
-        include_hosts = self.include
+    @property
+    def hostname(self) -> str | None:
+        """Return the hostname from DNS lookup."""
+        if self._mac in self.coordinator.data:
+            return self.coordinator.data[self._mac].get("hostname")
+        return self._hostname
 
-        """ignore exclude if include present"""
-        if include_hosts:
-            exclude_hosts = []
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        attrs = {
+            ATTR_MAC: self._mac,
+        }
+        
+        if self._mac in self.coordinator.data:
+            device_data = self.coordinator.data[self._mac]
+            attrs[ATTR_IP] = device_data.get("ip")
+            attrs[ATTR_VENDOR] = device_data.get("vendor", "Unknown")
+        
+        if self._last_seen:
+            attrs[ATTR_LAST_SEEN] = self._last_seen.isoformat()
+        
+        return attrs
 
-        scandata = subprocess.getoutput("arp-scan "+options)
-        _LOGGER.debug("Scandata %s", scandata)
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Return device info - all entities share one scanner device."""
+        return {
+            "identifiers": {(DOMAIN, self._interface)},
+            "name": f"ARP Scanner ({self._interface})",
+            "manufacturer": "ARP-Scan Tracker",
+            "model": "Network Scanner",
+        }
 
-        now = dt_util.now()
-        for line in scandata.splitlines():
-            ipv4 = re.findall(r'[0-9]+(?:\.[0-9]+){3}', line)
-            if not ipv4:
-                continue
-
-            parts = line.split()
-            ipv4 = parts[0]
-
-            if include_hosts:
-                if not ipv4 in include_hosts:
-                    _LOGGER.debug("Excluded %s", ipv4)
-                    continue
-
-            if ipv4 in exclude_hosts:
-                _LOGGER.debug("Excluded %s", ipv4)
-                continue
-
-            mac = parts[1]
-            last_results.append(Device(mac, mac.replace(':', ''), ipv4, now))
-
-        self.last_results = last_results
-
-        _LOGGER.debug("Arpscan successful")
-        return True
- 
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        if self._mac in self.coordinator.data:
+            self._last_seen = dt_util.utcnow()
+        self.async_write_ha_state()

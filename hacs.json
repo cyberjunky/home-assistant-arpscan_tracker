@@ -1,6 +1,6 @@
 {
-  "name": "Arpscan Device Tracker",
-  "country": "NL",
-  "render_readme": false,
-  "domains": ["device_tracker"]
+  "name": "ARP-Scan Device Tracker",
+  "homeassistant": "2025.2.4",
+  "hacs": "2.0.5",
+  "render_readme": true
 }
