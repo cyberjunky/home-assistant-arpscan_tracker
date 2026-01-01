@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import homeassistant.util.dt as dt_util
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -14,7 +15,6 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-import homeassistant.util.dt as dt_util
 
 from .const import (
     ATTR_IP,
@@ -48,8 +48,8 @@ async def async_setup_entry(
     def async_add_new_entities() -> None:
         """Add entities for newly discovered devices."""
         new_entities: list[ArpScanDeviceTracker] = []
-        
-        for mac, device_data in coordinator.data.items():
+
+        for mac, _device_data in coordinator.data.items():
             if mac not in tracked_macs:
                 tracked_macs.add(mac)
                 new_entities.append(
@@ -90,35 +90,34 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
     ) -> None:
         """Initialize the device tracker."""
         super().__init__(coordinator)
-        
+
         self._mac = mac.lower()
         self._consider_home = consider_home
         self._interface = interface
         self._entry_id = entry_id
         self._last_seen: datetime | None = None
-        
+
         # Get initial device data
         device_data = coordinator.data.get(self._mac, {})
         ip_address = device_data.get("ip", "unknown")
-        vendor = device_data.get("vendor", "Unknown")
         hostname = device_data.get("hostname")
-        
+
         # Format MAC for entity_id (remove colons)
         mac_clean = self._mac.replace(":", "")
-        
+
         # Entity ID uses MAC address (e.g., device_tracker.arpscan_tracker_1c697a658c2)
         self._attr_unique_id = f"{DOMAIN}_{mac_clean}"
-        
+
         # Display name: hostname if known, otherwise IP address
         if hostname:
             self._attr_name = hostname
         else:
             self._attr_name = ip_address
-        
+
         # Store for later reference
         self._ip_address = ip_address
         self._hostname = hostname
-        
+
         # Update last seen on init if device is in data
         if self._mac in coordinator.data:
             self._last_seen = dt_util.utcnow()
@@ -135,13 +134,13 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
         if self._mac in self.coordinator.data:
             self._last_seen = dt_util.utcnow()
             return True
-        
+
         # Check if device was seen within consider_home window
         if self._last_seen:
             time_diff = (dt_util.utcnow() - self._last_seen).total_seconds()
             if time_diff <= self._consider_home:
                 return True
-        
+
         return False
 
     @property
@@ -169,15 +168,15 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
         attrs = {
             ATTR_MAC: self._mac,
         }
-        
+
         if self._mac in self.coordinator.data:
             device_data = self.coordinator.data[self._mac]
             attrs[ATTR_IP] = device_data.get("ip")
             attrs[ATTR_VENDOR] = device_data.get("vendor", "Unknown")
-        
+
         if self._last_seen:
             attrs[ATTR_LAST_SEEN] = self._last_seen.isoformat()
-        
+
         return attrs
 
     @property

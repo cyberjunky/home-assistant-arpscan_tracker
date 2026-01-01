@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -14,7 +13,6 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
 
 from .const import (
     CONF_CONSIDER_HOME,
@@ -42,7 +40,7 @@ def _get_interface_schema(interfaces: list[str], default: str | None) -> vol.Sch
         interfaces = ["eth0"]  # Fallback
     if default and default not in interfaces:
         interfaces.insert(0, default)
-    
+
     return vol.Schema({
         vol.Required(CONF_INTERFACE, default=default or interfaces[0]): vol.In(interfaces),
     })
@@ -72,7 +70,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             interface = user_input[CONF_INTERFACE]
             network = user_input.get(CONF_NETWORK)
-            
+
             # If network is empty, auto-detect
             if not network:
                 network = await self.hass.async_add_executor_job(
@@ -80,7 +78,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 if not network:
                     errors["base"] = "cannot_detect_network"
-            
+
             if not errors:
                 # Check if already configured with same interface
                 await self.async_set_unique_id(f"{DOMAIN}_{interface}")
@@ -121,7 +119,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
 
         data_schema = vol.Schema({
             vol.Required(
-                CONF_INTERFACE, 
+                CONF_INTERFACE,
                 default=default_interface or (interface_options[0] if interface_options else "eth0")
             ): vol.In(interface_options),
             vol.Optional(
@@ -129,17 +127,21 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 description={"suggested_value": default_network or ""}
             ): str,
             vol.Optional(
-                CONF_SCAN_INTERVAL, 
+                CONF_SCAN_INTERVAL,
                 default=DEFAULT_SCAN_INTERVAL
             ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
             vol.Optional(
-                CONF_CONSIDER_HOME, 
+                CONF_CONSIDER_HOME,
                 default=DEFAULT_CONSIDER_HOME
             ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
             vol.Optional(
-                CONF_TIMEOUT, 
+                CONF_TIMEOUT,
                 default=DEFAULT_TIMEOUT
             ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=10.0)),
+            vol.Optional(
+                CONF_RESOLVE_HOSTNAMES,
+                default=DEFAULT_RESOLVE_HOSTNAMES
+            ): bool,
         })
 
         return self.async_show_form(
@@ -158,7 +160,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         interface = None
         network = None
         scan_options = import_config.get("scan_options", "")
-        
+
         if "--interface=" in scan_options:
             # Parse --interface=eth0 from options
             for part in scan_options.split():
@@ -170,7 +172,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if not interface:
             interface = await self.hass.async_add_executor_job(get_default_interface)
-        
+
         if not network and interface:
             network = await self.hass.async_add_executor_job(
                 get_interface_network, interface
@@ -219,16 +221,16 @@ class ArpScanOptionsFlow(OptionsFlow):
             # Parse include/exclude as comma-separated lists
             include_str = user_input.get(CONF_INCLUDE, "")
             exclude_str = user_input.get(CONF_EXCLUDE, "")
-            
+
             include_list = [
-                ip.strip() 
-                for ip in include_str.split(",") 
+                ip.strip()
+                for ip in include_str.split(",")
                 if ip.strip()
             ] if include_str else []
-            
+
             exclude_list = [
-                ip.strip() 
-                for ip in exclude_str.split(",") 
+                ip.strip()
+                for ip in exclude_str.split(",")
                 if ip.strip()
             ] if exclude_str else []
 

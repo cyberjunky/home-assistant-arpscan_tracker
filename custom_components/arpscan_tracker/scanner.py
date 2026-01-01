@@ -6,7 +6,7 @@ import asyncio
 import logging
 import socket
 import struct
-from ipaddress import IPv4Interface, IPv4Network
+from ipaddress import IPv4Interface
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,12 +17,12 @@ _LOGGER = logging.getLogger(__name__)
 
 def get_default_interface() -> str | None:
     """Get the default network interface name.
-    
+
     Returns the interface used for the default route.
     """
     try:
         # Read the routing table
-        with open("/proc/net/route", "r") as f:
+        with open("/proc/net/route") as f:
             for line in f.readlines()[1:]:  # Skip header
                 parts = line.strip().split()
                 if len(parts) >= 2:
@@ -39,16 +39,16 @@ def get_default_interface() -> str | None:
     for iface in ["eth0", "ens18", "enp0s3", "wlan0"]:
         if os.path.exists(f"/sys/class/net/{iface}"):
             return iface
-    
+
     return None
 
 
 def get_interface_network(interface: str) -> str | None:
     """Get the network range for an interface in CIDR notation.
-    
+
     Args:
         interface: Network interface name (e.g., eth0)
-        
+
     Returns:
         Network in CIDR notation (e.g., 192.168.1.0/24) or None if not found
     """
@@ -71,7 +71,7 @@ def get_interface_network(interface: str) -> str | None:
             struct.pack("256s", interface.encode()[:15])
         )[20:24]
         netmask = socket.inet_ntoa(netmask_bytes)
-        
+
         sock.close()
 
         # Calculate network
@@ -85,7 +85,7 @@ def get_interface_network(interface: str) -> str | None:
 
 def get_available_interfaces() -> list[str]:
     """Get list of available network interfaces.
-    
+
     Returns:
         List of interface names that are up and have IPv4 addresses.
     """
@@ -101,14 +101,14 @@ def get_available_interfaces() -> list[str]:
                 # Check if interface is up
                 operstate_file = f"{net_dir}/{iface}/operstate"
                 if os.path.exists(operstate_file):
-                    with open(operstate_file, "r") as f:
+                    with open(operstate_file) as f:
                         if f.read().strip() == "up":
                             # Check if it has an IPv4 address
                             if get_interface_network(iface):
                                 interfaces.append(iface)
     except OSError as err:
         _LOGGER.debug("Failed to list interfaces: %s", err)
-    
+
     return interfaces
 
 
@@ -123,7 +123,7 @@ class ArpScanner:
         resolve_hostnames: bool = True,
     ) -> None:
         """Initialize the ARP scanner.
-        
+
         Args:
             interface: Network interface to use (auto-detect if None)
             network: Network range in CIDR notation (auto-detect if None)
@@ -135,7 +135,7 @@ class ArpScanner:
         self._timeout = timeout
         self._resolve_hostnames = resolve_hostnames
         self._oui_lookup: Callable[[str], str | None] | None = None
-        
+
         # Initialize OUI lookup if available
         try:
             from ouilookup import OuiLookup
@@ -197,48 +197,48 @@ class ArpScanner:
 
     def _scan_sync(self) -> list[dict[str, str]]:
         """Perform synchronous ARP scan.
-        
+
         This method must be run in an executor as it blocks.
-        
+
         Returns:
             List of dicts with keys: ip, mac, vendor
         """
-        from scapy.all import ARP, Ether, srp, conf
-        
+        from scapy.all import ARP, Ether, conf, srp
+
         interface = self.interface
         network = self.network
-        
+
         if not interface:
             _LOGGER.error("No network interface available for ARP scan")
             return []
-        
+
         if not network:
             _LOGGER.error("No network range available for ARP scan")
             return []
-        
+
         _LOGGER.debug(
-            "Starting ARP scan on interface %s, network %s", 
-            interface, 
+            "Starting ARP scan on interface %s, network %s",
+            interface,
             network
         )
-        
+
         # Suppress scapy warnings
         conf.verb = 0
-        
+
         # Create ARP request packet
         # Ether(dst="ff:ff:ff:ff:ff:ff") = broadcast
         # ARP(pdst=network) = ARP request for all IPs in network
         arp_request = ARP(pdst=network)
         broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = broadcast / arp_request
-        
+
         try:
             # Send packets and receive responses
             # srp returns (answered, unanswered)
             answered, _ = srp(
-                packet, 
-                timeout=self._timeout, 
-                iface=interface, 
+                packet,
+                timeout=self._timeout,
+                iface=interface,
                 verbose=0,
                 retry=0,
             )
@@ -252,43 +252,43 @@ class ArpScanner:
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error("ARP scan failed: %s", err)
             return []
-        
+
         # Parse responses, ignoring duplicates (like arp-scan -g)
         seen_macs: set[str] = set()
         devices: list[dict[str, str]] = []
-        
-        for sent, received in answered:
+
+        for _sent, received in answered:
             mac = received.hwsrc.lower()
             ip = received.psrc
-            
+
             # Skip duplicates
             if mac in seen_macs:
                 continue
             seen_macs.add(mac)
-            
+
             # Look up vendor
             vendor = None
             if self._oui_lookup:
                 vendor = self._oui_lookup(mac)
-            
+
             # Look up hostname via reverse DNS (if enabled)
             hostname = None
             if self._resolve_hostnames:
                 hostname = self._lookup_hostname(ip)
-            
+
             devices.append({
                 "ip": ip,
                 "mac": mac,
                 "vendor": vendor or "Unknown",
                 "hostname": hostname,
             })
-        
+
         _LOGGER.debug("ARP scan found %d devices", len(devices))
         return devices
 
     async def async_scan(self) -> list[dict[str, str]]:
         """Perform asynchronous ARP scan.
-        
+
         Returns:
             List of dicts with keys: ip, mac, vendor
         """

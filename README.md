@@ -8,7 +8,7 @@
 
 # ARP-Scan Device Tracker Integration
 
-A Home Assistant custom integration that tracks devices on your network using ARP (Address Resolution Protocol) scanning. Which works very fast and is very accurate. This integration uses a pure Python implementation (via scapy) - no external `arp-scan` command required!
+A Home Assistant custom integration that tracks devices on your network using ARP (Address Resolution Protocol) scanning. Which works very fast and is very accurate. This integration uses a pure Python implementation - no external `arp-scan` command required!
 
 ## Supported Features
 
@@ -19,6 +19,10 @@ A Home Assistant custom integration that tracks devices on your network using AR
 - **Include/Exclude Lists**: Filter devices by IP address
 - **Fast Scanning**: Configurable scan intervals and timeouts
 - **YAML Migration**: Automatically imports existing YAML configurations
+
+## Device Tracker
+
+The integration created device trackers for each device found on your network. With a status `home`/`not_home`.
 
 ## Entity Attributes
 
@@ -110,6 +114,9 @@ After migration:
 1. Remove the YAML configuration from `configuration.yaml`
 2. Restart Home Assistant
 3. Manage settings through the UI
+
+> [!NOTE]
+> `known_devices.yaml` settings are not migrated. You need to reconfigure the entities in the Home Assistant UI.
 
 ## Permissions
 

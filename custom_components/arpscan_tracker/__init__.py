@@ -7,16 +7,13 @@ from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    CONF_CONSIDER_HOME,
     CONF_EXCLUDE,
     CONF_INCLUDE,
     CONF_INTERFACE,

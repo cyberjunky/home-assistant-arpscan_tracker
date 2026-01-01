@@ -9,14 +9,16 @@
                     "network": "Network Range (CIDR)",
                     "scan_interval": "Scan Interval (seconds)",
                     "consider_home": "Consider Home (seconds)",
-                    "timeout": "ARP Timeout (seconds)"
+                    "timeout": "ARP Timeout (seconds)",
+                    "resolve_hostnames": "Resolve Hostnames (DNS)"
                 },
                 "data_description": {
                     "interface": "Network interface to scan (e.g., eth0, wlan0)",
                     "network": "Network range in CIDR notation (e.g., 192.168.1.0/24). Leave empty to auto-detect.",
                     "scan_interval": "How often to scan for devices (5-300 seconds)",
                     "consider_home": "How long to wait before marking a device as not home (10-600 seconds)",
-                    "timeout": "Timeout for each ARP request (0.5-10 seconds)"
+                    "timeout": "Timeout for each ARP request (0.5-10 seconds)",
+                    "resolve_hostnames": "Look up device hostnames via reverse DNS lookup"
                 }
             }
         },
