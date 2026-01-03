@@ -117,6 +117,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.debug("Device %s (%s) in exclude list, skipping", ip, mac)
                 continue
 
+            # Skip devices with missing MAC address
+            if mac is None:
+                continue
+
             result[mac] = device
 
         _LOGGER.debug("ARP scan returned %d devices after filtering", len(result))

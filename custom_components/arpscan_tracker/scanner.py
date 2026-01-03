@@ -156,7 +156,7 @@ class ArpScanner:
                 for item in result:
                     if isinstance(item, dict):
                         for _, vendor in item.items():
-                            return vendor
+                            return str(vendor)
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("OUI lookup failed for %s: %s", mac, err)
         return None
@@ -195,7 +195,7 @@ class ArpScanner:
             return None
         return self._network
 
-    def _scan_sync(self) -> list[dict[str, str]]:
+    def _scan_sync(self) -> list[dict[str, str | None]]:
         """Perform synchronous ARP scan.
 
         This method must be run in an executor as it blocks.
@@ -255,7 +255,7 @@ class ArpScanner:
 
         # Parse responses, ignoring duplicates (like arp-scan -g)
         seen_macs: set[str] = set()
-        devices: list[dict[str, str]] = []
+        devices: list[dict[str, str | None]] = []
 
         for _sent, received in answered:
             mac = received.hwsrc.lower()
@@ -286,7 +286,7 @@ class ArpScanner:
         _LOGGER.debug("ARP scan found %d devices", len(devices))
         return devices
 
-    async def async_scan(self) -> list[dict[str, str]]:
+    async def async_scan(self) -> list[dict[str, str | None]]:
         """Perform asynchronous ARP scan.
 
         Returns:

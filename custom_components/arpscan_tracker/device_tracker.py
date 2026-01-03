@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import homeassistant.util.dt as dt_util
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -79,6 +80,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
     """Representation of a device tracked via ARP scan."""
 
     _attr_has_entity_name = True
+    _attr_device_info: DeviceInfo  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -116,11 +118,19 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
 
         # Store for later reference
         self._ip_address = ip_address
-        self._hostname = hostname
+        self._hostname: str | None = hostname if isinstance(hostname, str) else None
 
         # Update last seen on init if device is in data
         if self._mac in coordinator.data:
             self._last_seen = dt_util.utcnow()
+
+        # Device info - all entities share one scanner device
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._interface)},
+            name=f"ARP Scanner ({self._interface})",
+            manufacturer="ARP-Scan Tracker",
+            model="Network Scanner",
+        )
 
     @property
     def source_type(self) -> SourceType:
@@ -152,14 +162,16 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
     def ip_address(self) -> str | None:
         """Return the IP address."""
         if self._mac in self.coordinator.data:
-            return self.coordinator.data[self._mac].get("ip")
+            ip = self.coordinator.data[self._mac].get("ip")
+            return cast(str, ip) if ip else None
         return None
 
     @property
     def hostname(self) -> str | None:
         """Return the hostname from DNS lookup."""
         if self._mac in self.coordinator.data:
-            return self.coordinator.data[self._mac].get("hostname")
+            hostname = self.coordinator.data[self._mac].get("hostname")
+            return cast(str, hostname) if hostname else None
         return self._hostname
 
     @property
@@ -179,15 +191,6 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
 
         return attrs
 
-    @property
-    def device_info(self) -> dict[str, Any]:
-        """Return device info - all entities share one scanner device."""
-        return {
-            "identifiers": {(DOMAIN, self._interface)},
-            "name": f"ARP Scanner ({self._interface})",
-            "manufacturer": "ARP-Scan Tracker",
-            "model": "Network Scanner",
-        }
 
     @callback
     def _handle_coordinator_update(self) -> None:

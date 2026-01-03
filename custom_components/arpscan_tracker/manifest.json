@@ -1,17 +1,17 @@
 {
   "domain": "arpscan_tracker",
   "name": "ARP-Scan Device Tracker",
-  "version": "2.0.0",
+  "codeowners": [
+    "@cyberjunky"
+  ],
+  "config_flow": true,
+  "dependencies": [],
   "documentation": "https://github.com/cyberjunky/home-assistant-arpscan_tracker",
+  "iot_class": "local_polling",
   "issue_tracker": "https://github.com/cyberjunky/home-assistant-arpscan_tracker/issues",
   "requirements": [
     "scapy>=2.5.0",
     "ouilookup>=0.2.4"
   ],
-  "config_flow": true,
-  "iot_class": "local_polling",
-  "dependencies": [],
-  "codeowners": [
-    "@cyberjunky"
-  ]
+  "version": "2.0.1"
 }
