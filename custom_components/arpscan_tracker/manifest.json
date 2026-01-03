@@ -13,5 +13,5 @@
     "scapy>=2.5.0",
     "ouilookup>=0.2.4"
   ],
-  "version": "2.0.1"
+  "version": "2.0.2"
 }

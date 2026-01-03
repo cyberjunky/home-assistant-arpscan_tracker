@@ -78,7 +78,7 @@ Alternatively:
 | **Network Interface** | Auto-detect | Network interface to scan (e.g., `eth0`, `wlan0`) |
 | **Network Range** | Auto-detect | Network in CIDR notation (e.g., `192.168.1.0/24`) |
 | **Scan Interval** | 15 seconds | How often to scan for devices (5-300) |
-| **Consider Home** | 180 seconds | Time before marking device as not_home (10-600) |
+| **Consider Home** | 180 seconds | Time before marking device as not_home (10-1800) |
 | **ARP Timeout** | 1.0 seconds | Timeout for each ARP request (0.5-10) |
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
 | **Include IPs** | Empty | Only track these IP addresses (comma-separated) |

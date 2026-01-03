@@ -133,7 +133,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 CONF_CONSIDER_HOME,
                 default=DEFAULT_CONSIDER_HOME
-            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
+            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=1800)),
             vol.Optional(
                 CONF_TIMEOUT,
                 default=DEFAULT_TIMEOUT
@@ -264,7 +264,7 @@ class ArpScanOptionsFlow(OptionsFlow):
                 default=self.config_entry.options.get(
                     CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME
                 ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
+            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=1800)),
             vol.Required(
                 CONF_TIMEOUT,
                 default=self.config_entry.options.get(CONF_TIMEOUT, DEFAULT_TIMEOUT),
