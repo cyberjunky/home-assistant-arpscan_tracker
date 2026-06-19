@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import socket
 import struct
+import sys
 from ipaddress import IPv4Interface
 from typing import TYPE_CHECKING
 
@@ -478,8 +481,76 @@ class ArpScanner:
     async def async_scan(self) -> list[dict[str, str | None]]:
         """Perform asynchronous ARP scan.
 
+        The scan runs in a short-lived **subprocess** rather than an executor
+        thread. scapy's ``srp()`` uses ``select.select()`` internally, which
+        raises ``filedescriptor out of range in select()`` once any file
+        descriptor is >= ``FD_SETSIZE`` (1024). A long-running Home Assistant
+        process accumulates enough open FDs that the raw socket scapy opens
+        lands above that ceiling and every scan fails. A freshly-spawned child
+        process starts with low FD numbers, so ``select()`` stays valid.
+
         Returns:
-            List of dicts with keys: ip, mac, vendor
+            List of dicts with keys: ip, mac, vendor, hostname
         """
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._scan_sync)
+        params = {
+            "interface": self._interface,
+            "network": self._network,
+            "timeout": self._timeout,
+            "resolve_hostnames": self._resolve_hostnames,
+            "hosts": self._hosts,
+        }
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                os.path.abspath(__file__),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as err:
+            _LOGGER.error("Failed to start ARP scan subprocess: %s", err)
+            return []
+
+        stdout, stderr = await proc.communicate(json.dumps(params).encode())
+
+        if proc.returncode != 0:
+            _LOGGER.error(
+                "ARP scan subprocess exited %s: %s",
+                proc.returncode,
+                stderr.decode(errors="ignore").strip(),
+            )
+            return []
+
+        try:
+            return json.loads(stdout.decode() or "[]")
+        except json.JSONDecodeError as err:
+            _LOGGER.error("ARP scan subprocess returned invalid output: %s", err)
+            return []
+
+
+def _subprocess_entrypoint() -> int:
+    """Run a single scan and emit the result as JSON on stdout.
+
+    Invoked as ``python scanner.py`` by :meth:`ArpScanner.async_scan` so the
+    scapy ``srp()``/``select.select()`` call runs in a fresh low-FD process
+    (see async_scan for the FD_SETSIZE rationale). Scan parameters are read as
+    a JSON object on stdin; the result (``list[dict]``) is written to stdout.
+    """
+    try:
+        params = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        params = {}
+
+    scanner = ArpScanner(
+        interface=params.get("interface"),
+        network=params.get("network"),
+        timeout=params.get("timeout", 1.0),
+        resolve_hostnames=params.get("resolve_hostnames", True),
+        hosts=params.get("hosts"),
+    )
+    json.dump(scanner._scan_sync(), sys.stdout)  # noqa: SLF001
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_subprocess_entrypoint())
