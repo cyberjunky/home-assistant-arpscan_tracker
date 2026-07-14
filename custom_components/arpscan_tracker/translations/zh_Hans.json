@@ -1,0 +1,74 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "ARP-Scan 设备追踪",
+                "description": "配置网络扫描来追踪设备。该集成通过 ARP 请求扫描您的网络，检测已连接的设备。",
+                "data": {
+                    "interface": "网络接口",
+                    "network": "网络范围 (CIDR)",
+                    "scan_interval": "扫描间隔",
+                    "consider_home": "离家判定时长",
+                    "timeout": "ARP 超时",
+                    "resolve_hostnames": "解析主机名 (DNS)",
+                    "devices_enabled": "启用新发现的设备",
+                    "track_new_devices": "追踪新设备",
+                    "include": "包含 IP",
+                    "exclude": "排除 IP",
+                    "hosts": "ZeroTier/VPN 主机 (IP)"
+                },
+                "data_description": {
+                    "interface": "从列表中选择一个网络接口",
+                    "network": "CIDR 格式的网络范围（如 192.168.1.0/24）。留空则自动检测。",
+                    "scan_interval": "扫描设备的频率（5-300 秒）",
+                    "consider_home": "设备离开后多久判定为不在家（10-1800 秒）",
+                    "timeout": "每次 ARP 请求的超时时间（0.5-10 秒）",
+                    "resolve_hostnames": "通过反向 DNS 查询设备主机名",
+                    "devices_enabled": "默认启用所有新发现的设备追踪实体。关闭后，新设备仍会添加到实体注册表，但默认禁用。",
+                    "track_new_devices": "自动为新发现的设备创建设备追踪实体。禁用时，仅追踪已知设备。",
+                    "include": "仅追踪这些 IP 地址的设备（逗号分隔列表）",
+                    "exclude": "跳过追踪这些 IP 地址的设备（逗号分隔列表）",
+                    "hosts": "仅探测这些 IP 而不是扫描整个网络（适用于 ZeroTier、WireGuard、Tailscale 等）"
+                }
+            }
+        },
+        "error": {
+            "cannot_detect_network": "无法检测所选接口的网络配置。请手动指定网络范围。",
+            "already_configured": "该接口已配置。"
+        },
+        "abort": {
+            "already_configured": "该接口已配置。",
+            "cannot_detect_network": "无法检测网络配置。请检查您的网络设置。"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "ARP-Scan 选项",
+                "description": "配置设备追踪选项。",
+                "data": {
+                    "scan_interval": "扫描间隔",
+                    "consider_home": "离家判定时长",
+                    "timeout": "ARP 超时",
+                    "resolve_hostnames": "解析主机名 (DNS)",
+                    "devices_enabled": "启用新发现的设备",
+                    "track_new_devices": "追踪新设备",
+                    "hosts": "ZeroTier/VPN 主机 (IP)",
+                    "include": "包含 IP",
+                    "exclude": "排除 IP"
+                },
+                "data_description": {
+                    "scan_interval": "扫描设备的频率（5-300 秒）",
+                    "consider_home": "设备离开后多久判定为不在家（10-1800 秒）",
+                    "timeout": "每次 ARP 请求的超时时间（0.5-10 秒）",
+                    "resolve_hostnames": "通过反向 DNS 查询设备主机名（可能会减慢扫描速度）",
+                    "devices_enabled": "默认启用所有新发现的设备追踪实体。关闭后，新设备仍会添加到实体注册表，但默认禁用。",
+                    "track_new_devices": "自动为新发现的设备创建设备追踪实体。禁用时，仅追踪已知设备。",
+                    "hosts": "仅探测这些 IP 而不是扫描整个网络（适用于 ZeroTier、WireGuard、Tailscale 等）",
+                    "include": "仅追踪这些 IP 地址的设备（逗号分隔列表）",
+                    "exclude": "跳过追踪这些 IP 地址的设备（逗号分隔列表）"
+                }
+            }
+        }
+    }
+}
