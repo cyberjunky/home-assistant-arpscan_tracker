@@ -4,6 +4,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Use the project-local venv created by scripts/setup, if present.
+if [ -f ".venv/bin/activate" ]; then
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
+fi
+
 # Determine the Home Assistant command to use (need full path for sudo)
 if command -v hass &> /dev/null; then
   HASS_CMD="$(which hass)"

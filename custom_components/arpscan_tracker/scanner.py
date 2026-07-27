@@ -511,7 +511,21 @@ class ArpScanner:
             _LOGGER.error("Failed to start ARP scan subprocess: %s", err)
             return []
 
-        stdout, stderr = await proc.communicate(json.dumps(params).encode())
+        # Bound the wait: without a timeout, a wedged subprocess (e.g. an
+        # interface that vanished mid-scan, or hostname lookups stacking up
+        # across many hosts) would hang this coordinator refresh forever,
+        # leaving every entity stuck at its last-known state permanently
+        # rather than eventually reporting the scan as failed.
+        scan_timeout = max(60.0, self._timeout * 10)
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(json.dumps(params).encode()), timeout=scan_timeout
+            )
+        except TimeoutError:
+            _LOGGER.error("ARP scan subprocess timed out after %.1fs, killing it", scan_timeout)
+            proc.kill()
+            await proc.wait()
+            return []
 
         if proc.returncode != 0:
             _LOGGER.error(

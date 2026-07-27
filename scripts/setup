@@ -4,6 +4,16 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Use a project-local venv: on Debian/Ubuntu-based devcontainer images, the
+# system python3 is "externally managed" (PEP 668) and rejects `pip install`
+# outright, which aborted this script (via `set -e`) before Home Assistant
+# or its dependencies were ever installed.
+if [ ! -d ".venv" ]; then
+  python3 -m venv .venv
+fi
+# shellcheck disable=SC1091
+source .venv/bin/activate
+
 scripts/install/pip_packages "pip<23.2,>=21.3.1"
 scripts/install/pip_packages setuptools wheel
 scripts/install/pip_packages --requirement requirements_lint.txt
