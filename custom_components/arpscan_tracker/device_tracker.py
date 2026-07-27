@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -34,6 +35,17 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Matches names produced by the old "IP address with dots replaced by
+# underscores" fallback (e.g. "192_168_1_5"). Treated as unset so it can be
+# re-derived to a hostname or the MAC-based fallback, since an IP can be
+# reassigned to a different device over time.
+_IP_BASED_NAME_RE = re.compile(r"^\d{1,3}(?:_\d{1,3}){3}$")
+
+
+def _is_ip_based_name(name: str) -> bool:
+    """Return True if name matches the old IP-based fallback name pattern."""
+    return bool(_IP_BASED_NAME_RE.match(name))
 
 
 async def async_setup_entry(
@@ -189,20 +201,19 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         hostname = device_data.get("hostname")
 
         # Display name priority:
-        # 1. Restored name (preserves user-set or previously discovered names)
+        # 1. Restored name (preserves user-set or previously discovered names).
+        #    Old IP-based fallback names are treated as unset and re-derived
+        #    below, since an IP can be reassigned to a different device.
         # 2. Hostname from DNS
-        # 3. IP address with underscores
-        # 4. MAC address
+        # 3. MAC address without colons (stable fallback, unlike an IP)
         # Vendor is kept as a state attribute only, not used in entity name/id
         vendor = device_data.get("vendor")
-        if restored_name:
+        if restored_name and not _is_ip_based_name(restored_name):
             self._attr_name = restored_name
         elif hostname:
             self._attr_name = hostname
-        elif ip_address and ip_address != "unknown":
-            self._attr_name = ip_address.replace(".", "_")
         else:
-            self._attr_name = self._mac
+            self._attr_name = self._mac.replace(":", "")
 
         # Store for later reference
         self._ip_address = ip_address
@@ -234,8 +245,14 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
             if self._mac not in self.coordinator.data:
                 if ip := last_state.attributes.get(ATTR_IP):
                     self._ip_address = ip
-                # Restore hostname as entity name if it was set
-                if last_state.name and last_state.name != "unknown":
+                # Restore hostname as entity name if it was set. Old IP-based
+                # fallback names are ignored so they re-derive to the
+                # MAC-based fallback instead (see _is_ip_based_name).
+                if (
+                    last_state.name
+                    and last_state.name != "unknown"
+                    and not _is_ip_based_name(last_state.name)
+                ):
                     self._attr_name = last_state.name
 
         # Now register with coordinator after state is restored
