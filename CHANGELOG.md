@@ -8,6 +8,26 @@
 - Fixed Include/Exclude/Hosts options that could not be cleared again once set
 - Fixed socket leak when probing interfaces without an IPv4 address
 
+### 2.1.7
+
+- Devices without a resolvable hostname are now named after their MAC address instead of their IP (#82); existing IP-based names are migrated automatically, entity IDs are unaffected
+- Run the ARP scan in a subprocess to avoid the `select()` file descriptor limit (#74)
+- Added a timeout to the ARP scan subprocess, so a wedged scan fails and retries instead of leaving every device stuck "away" (#75)
+- Added Simplified Chinese translation (`zh_Hans`), thanks to @acooler15
+- Bumped `scapy` to `>=2.7.0` and `ouilookup` to `>=0.3.1`
+
+### 2.1.6
+
+- Fixed new devices being created in a disabled state
+
+### 2.1.5
+
+- Better DNS resolving of device names
+
+### 2.1.4
+
+- Fixed wrong device entity names when no DNS name was returned
+
 ### 2.1.3
 
 - Added **Enable Found Devices** option to enable/disable all device tracker entities
