@@ -28,8 +28,12 @@ logger:
     custom_components.arpscan_tracker: debug"
 fi
 
-# Set the python path to include our custom_components directory
-export PYTHONPATH="${PYTHONPATH}:${PWD}/custom_components"
+# Link our custom_components directory into the config directory so Home
+# Assistant finds the integration. PYTHONPATH can't be used for this: sudo
+# strips it from the environment, even with -E.
+if [ ! -e "${PWD}/config/custom_components" ]; then
+  ln -s ../custom_components "${PWD}/config/custom_components"
+fi
 
 # Start Home Assistant with sudo for raw socket access (ARP scanning)
 sudo -E ${HASS_CMD} --config "${PWD}/config" --debug
