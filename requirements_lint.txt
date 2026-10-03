@@ -6,7 +6,7 @@ pylint==4.0.8
 pytest
 pytest-asyncio
 pytest-cov
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component==0.13.367
 pyupgrade==3.21.2
 ruff==0.16.7
 types-pytz==2026.3.1.20260727

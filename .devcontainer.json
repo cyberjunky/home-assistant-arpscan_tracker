@@ -1,6 +1,6 @@
 {
   "name": "Arpscan Tracker",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.14",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14",
   "postCreateCommand": "scripts/setup",
   "runArgs": [
     "--privileged",
