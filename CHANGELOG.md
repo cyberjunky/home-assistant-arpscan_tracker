@@ -1,5 +1,13 @@
 ## Changelog
 
+### 2.1.8
+
+- **Breaking**: Requires Home Assistant 2026.3.0 or newer (Python 3.14)
+- Added local brand images (`brand/` folder), so the integration icon shows up without the Home Assistant brands repository
+- Fixed newly discovered devices being created disabled until the next reload, even with **Enable Found Devices** on
+- Fixed Include/Exclude/Hosts options that could not be cleared again once set
+- Fixed socket leak when probing interfaces without an IPv4 address
+
 ### 2.1.3
 
 - Added **Enable Found Devices** option to enable/disable all device tracker entities

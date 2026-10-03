@@ -1,7 +1,5 @@
 """Device tracker platform for ARP-Scan."""
 
-from __future__ import annotations
-
 import logging
 import re
 from datetime import datetime, timedelta
@@ -11,7 +9,8 @@ import homeassistant.util.dt as dt_util
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -51,11 +50,9 @@ def _is_ip_based_name(name: str) -> bool:
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up device tracker entities from a config entry."""
-    from homeassistant.helpers import entity_registry as er
-
     coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
     consider_home = entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
     # Defensive check: ensure consider_home is an int (might be timedelta from corrupted config)
@@ -172,8 +169,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
 
     # Override ScannerEntity's default entity_category=DIAGNOSTIC which causes
     # all entities to be disabled by default regardless of devices_enabled option
-    _attr_entity_category = None
-
+    _attr_entity_category = None  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -192,7 +188,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         self._consider_home = consider_home
         self._interface = interface
         self._entry_id = entry_id
-        self._attr_entity_registry_enabled_default = devices_enabled
+        self._devices_enabled = devices_enabled
         self._last_seen: datetime | None = dt_util.utcnow() - timedelta(days=365)
 
         # Get initial device data
@@ -207,7 +203,6 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         # 2. Hostname from DNS
         # 3. MAC address without colons (stable fallback, unlike an IP)
         # Vendor is kept as a state attribute only, not used in entity name/id
-        vendor = device_data.get("vendor")
         if restored_name and not _is_ip_based_name(restored_name):
             self._attr_name = restored_name
         elif hostname:
@@ -232,14 +227,18 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
             # Restore last_seen from attributes
             if last_seen_str := last_state.attributes.get(ATTR_LAST_SEEN):
                 try:
-                    self._last_seen = dt_util.parse_datetime(last_seen_str)
+                    last_seen = dt_util.parse_datetime(last_seen_str)
+                except (ValueError, TypeError):
+                    last_seen = None
+                # parse_datetime returns None for unparsable input; keep the
+                # initial value in that case
+                if last_seen is not None:
+                    self._last_seen = last_seen
                     _LOGGER.debug(
                         "Restored last_seen for %s: %s",
                         self._mac,
                         self._last_seen,
                     )
-                except (ValueError, TypeError):
-                    pass
 
             # Restore IP and hostname if not currently in coordinator data
             if self._mac not in self.coordinator.data:
@@ -262,6 +261,17 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
     def available(self) -> bool:
         """Return True, device trackers are always available."""
         return True
+
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Return if the entity should be enabled when first added.
+
+        ScannerEntity overrides this property to only enable entities whose
+        MAC is already known to another integration, which ignores
+        _attr_entity_registry_enabled_default and left newly discovered
+        devices disabled until the next reload.
+        """
+        return self._devices_enabled
 
     @property
     def source_type(self) -> SourceType:

@@ -20,7 +20,7 @@ repos:
         entry: pyupgrade
         files: ^.*.py$
         args:
-          - "--py311-plus"
+          - "--py314-plus"
 
       - id: ruff-check
         name: Run ruff check

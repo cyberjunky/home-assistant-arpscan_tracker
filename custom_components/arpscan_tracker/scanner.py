@@ -1,7 +1,5 @@
 """Pure Python ARP scanner using scapy."""
 
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
@@ -10,12 +8,15 @@ import socket
 import struct
 import sys
 from ipaddress import IPv4Interface
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
+
+# Path of this module, executed as a script by ArpScanner.async_scan
+_SCRIPT_PATH = os.path.abspath(__file__)
 
 
 def get_default_interface() -> str | None:
@@ -38,8 +39,6 @@ def get_default_interface() -> str | None:
         _LOGGER.debug("Failed to read routing table: %s", err)
 
     # Fallback: try common interface names
-    import os
-
     for iface in ["eth0", "ens18", "enp0s3", "wlan0"]:
         if os.path.exists(f"/sys/class/net/{iface}"):
             return iface
@@ -59,24 +58,24 @@ def get_interface_network(interface: str) -> str | None:
     try:
         import fcntl
 
-        # Get IP address
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        ip_bytes = fcntl.ioctl(
-            sock.fileno(),
-            0x8915,  # SIOCGIFADDR
-            struct.pack("256s", interface.encode()[:15]),
-        )[20:24]
-        ip_addr = socket.inet_ntoa(ip_bytes)
+        # The context manager closes the socket even when the ioctl fails
+        # (e.g. interface without an IPv4 address)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            # Get IP address
+            ip_bytes = fcntl.ioctl(
+                sock.fileno(),
+                0x8915,  # SIOCGIFADDR
+                struct.pack("256s", interface.encode()[:15]),
+            )[20:24]
+            ip_addr = socket.inet_ntoa(ip_bytes)
 
-        # Get netmask
-        netmask_bytes = fcntl.ioctl(
-            sock.fileno(),
-            0x891B,  # SIOCGIFNETMASK
-            struct.pack("256s", interface.encode()[:15]),
-        )[20:24]
-        netmask = socket.inet_ntoa(netmask_bytes)
-
-        sock.close()
+            # Get netmask
+            netmask_bytes = fcntl.ioctl(
+                sock.fileno(),
+                0x891B,  # SIOCGIFNETMASK
+                struct.pack("256s", interface.encode()[:15]),
+            )[20:24]
+            netmask = socket.inet_ntoa(netmask_bytes)
 
         # Calculate network
         iface = IPv4Interface(f"{ip_addr}/{netmask}")
@@ -95,8 +94,6 @@ def get_available_interfaces() -> list[str]:
     """
     interfaces = []
     try:
-        import os
-
         net_dir = "/sys/class/net"
         if os.path.isdir(net_dir):
             for iface in os.listdir(net_dir):
@@ -502,7 +499,7 @@ class ArpScanner:
         try:
             proc = await asyncio.create_subprocess_exec(
                 sys.executable,
-                os.path.abspath(__file__),
+                _SCRIPT_PATH,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -536,7 +533,7 @@ class ArpScanner:
             return []
 
         try:
-            return json.loads(stdout.decode() or "[]")
+            return cast(list[dict[str, str | None]], json.loads(stdout.decode() or "[]"))
         except json.JSONDecodeError as err:
             _LOGGER.error("ARP scan subprocess returned invalid output: %s", err)
             return []
@@ -562,7 +559,7 @@ def _subprocess_entrypoint() -> int:
         resolve_hostnames=params.get("resolve_hostnames", True),
         hosts=params.get("hosts"),
     )
-    json.dump(scanner._scan_sync(), sys.stdout)  # noqa: SLF001
+    json.dump(scanner._scan_sync(), sys.stdout)
     return 0
 
 

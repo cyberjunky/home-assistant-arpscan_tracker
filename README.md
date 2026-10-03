@@ -41,6 +41,8 @@ Each tracked device exposes these attributes:
 
 ## Installation
 
+Requires Home Assistant 2026.3.0 or newer.
+
 ### HACS (Recommended)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cyberjunky&repository=home-assistant-arpscan_tracker&category=integration)
@@ -291,6 +293,8 @@ mode: single
 
 
 ## Development
+
+Requires Python 3.14 (same as Home Assistant 2026.3 and newer).
 
 Quick-start (from project root):
 

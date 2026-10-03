@@ -1,7 +1,5 @@
 """Config flow for ARP-Scan Device Tracker integration."""
 
-from __future__ import annotations
-
 import logging
 import re
 from datetime import timedelta
@@ -355,17 +353,20 @@ class ArpScanOptionsFlow(OptionsFlow):
                         CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES
                     ),
                 ): bool,
+                # Use suggested_value rather than default: a default would be
+                # re-applied when the user clears the field, making it
+                # impossible to empty these lists again.
                 vol.Optional(
                     CONF_INCLUDE,
-                    default=", ".join(current_include) if current_include else "",
+                    description={"suggested_value": ", ".join(current_include)},
                 ): str,
                 vol.Optional(
                     CONF_EXCLUDE,
-                    default=", ".join(current_exclude) if current_exclude else "",
+                    description={"suggested_value": ", ".join(current_exclude)},
                 ): str,
                 vol.Optional(
                     CONF_HOSTS,
-                    default=", ".join(current_hosts) if current_hosts else "",
+                    description={"suggested_value": ", ".join(current_hosts)},
                 ): str,
             }
         )
