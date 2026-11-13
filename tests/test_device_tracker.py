@@ -165,6 +165,61 @@ async def test_restore_registry_entities(hass: HomeAssistant, mock_scan: AsyncMo
     assert hass.states.get("device_tracker.junk") is None
 
 
+async def test_device_renamed_when_hostname_appears(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_scan: AsyncMock
+) -> None:
+    """A device named after its MAC is renamed once its hostname resolves."""
+    await _setup(hass, mock_config_entry)
+    laptop_id = _entity_id(hass, MAC_LAPTOP)
+    assert hass.states.get(laptop_id).name == "aabbccddee02"
+
+    mock_scan.return_value = [
+        scan_result()[0],
+        {**scan_result()[1], "hostname": "laptop"},
+    ]
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert _device(hass, mock_config_entry, MAC_LAPTOP).name == "laptop"
+    assert hass.states.get(laptop_id).name == "laptop"
+    assert hass.states.get(laptop_id).attributes["host_name"] == "laptop"
+
+
+async def test_device_rename_keeps_user_name(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_scan: AsyncMock
+) -> None:
+    """A new hostname doesn't override the name the user gave the device."""
+    await _setup(hass, mock_config_entry)
+    dev_reg = dr.async_get(hass)
+    device = _device(hass, mock_config_entry, MAC_PHONE)
+    dev_reg.async_update_device(device.id, name_by_user="Ron's phone")
+
+    mock_scan.return_value = [{**scan_result()[0], "hostname": "galaxy"}, scan_result()[1]]
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    device = _device(hass, mock_config_entry, MAC_PHONE)
+    assert device.name == "galaxy"
+    assert device.name_by_user == "Ron's phone"
+    assert hass.states.get("device_tracker.phone").name == "Ron's phone"
+
+
+async def test_device_not_renamed_while_hostname_unchanged(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_scan: AsyncMock
+) -> None:
+    """Scans with the same hostname leave a device name set elsewhere alone."""
+    await _setup(hass, mock_config_entry)
+    dev_reg = dr.async_get(hass)
+    device = _device(hass, mock_config_entry, MAC_PHONE)
+    # E.g. named by another integration that knows the same MAC
+    dev_reg.async_update_device(device.id, name="Living room phone")
+
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert _device(hass, mock_config_entry, MAC_PHONE).name == "Living room phone"
+
+
 async def test_offline_device_keeps_its_name(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_scan: AsyncMock
 ) -> None:

@@ -226,5 +226,21 @@ class ArpScanDeviceTracker(CoordinatorEntity[ArpScanCoordinator], RestoreEntity,
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle a new scan result."""
+        previous_hostname = self.hostname
         self._update_from_scan()
+        if self.hostname and self.hostname != previous_hostname:
+            self._async_rename_device(self.hostname)
         super()._handle_coordinator_update()
+
+    @callback
+    def _async_rename_device(self, name: str) -> None:
+        """Name the device after a new hostname.
+
+        A name the user gave the device (name_by_user) still takes precedence.
+        """
+        if self.registry_entry is None or self.registry_entry.device_id is None:
+            return
+        dev_reg = dr.async_get(self.hass)
+        device = dev_reg.async_get(self.registry_entry.device_id)
+        if device is not None and device.name != name:
+            dev_reg.async_update_device(device.id, name=name)

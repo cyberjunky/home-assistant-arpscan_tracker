@@ -18,6 +18,7 @@
 - A device seen on two configured interfaces is tracked by the first entry only, instead of failing with a duplicate unique ID
 - Devices can be removed from the device page
 - Added diagnostics
+- A device is renamed when its hostname shows up or changes while Home Assistant runs (#138)
 - Uses the config entry runtime data and passes the config entry to the coordinator
 
 ### 2.1.9
