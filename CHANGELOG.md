@@ -1,5 +1,23 @@
 ## Changelog
 
+### 2.2.0
+
+- **Breaking**: YAML configuration (`device_tracker` with `platform: arpscan_tracker`) is removed; add the integration via the UI instead
+- **Breaking**: The scan interval and ARP timeout are no longer configurable; the network is scanned every 15 seconds. Existing settings are removed automatically
+- **Breaking**: Every tracker now has a device, named after the hostname or MAC address; the trackers take their name from the device. Rename the device to rename the tracker
+- A failed scan (missing permission, interface down, scan worker crash) now makes the trackers `unavailable` instead of quietly reporting every device as away, and is logged once instead of on every scan
+- Hostnames are resolved in parallel and cached for an hour, so a slow DNS server can no longer time out the scan; vendor lookups are cached too
+- The ARP scan runs in a long-lived worker process instead of starting a new process (and importing scapy) every 15 seconds
+- The network range and host lists are validated; networks larger than 1024 addresses (/22) can only be used with specific hosts
+- Added a reconfigure flow to change the interface or network without removing the integration
+- The setup form only asks for the interface, network and hosts; all other settings are under **Configure**
+- Include and exclude lists can no longer be used together
+- Specific hosts mode no longer uses another host's IP as sender address when the interface's own IP can't be read
+- A device seen on two configured interfaces is tracked by the first entry only, instead of failing with a duplicate unique ID
+- Devices can be removed from the device page
+- Added diagnostics
+- Uses the config entry runtime data and passes the config entry to the coordinator
+
 ### 2.1.9
 
 - Better detection of sleeping phones (Samsung/Android, iPhone) that ignore broadcast ARP in Wi-Fi power save (#83): known devices missing from the scan are now woken with a UDP packet and probed with a unicast ARP request, and devices the kernel recently confirmed as reachable count as present. This reduces home/not_home flapping, but phones that ignore all traffic in deep sleep can still drop out

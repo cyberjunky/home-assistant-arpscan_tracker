@@ -17,12 +17,14 @@ A Home Assistant custom integration that tracks devices on your network using AR
 - **Auto-detection**: Automatically detects network interface and range
 - **Vendor Lookup**: Identifies device manufacturers via OUI database
 - **Include/Exclude Lists**: Filter devices by IP address
-- **Fast Scanning**: Configurable scan intervals and timeouts
-- **YAML Migration**: Automatically imports existing YAML configurations
+- **Sleeping Phones**: Known devices that miss a scan are woken up and probed directly, so phones in Wi-Fi power save don't flap between home and away
+- **Diagnostics**: Download the latest scan result from the integration page
 
 ## Device Tracker
 
-The integration created device trackers for each device found on your network. With a status `home`/`not_home`.
+The integration creates a device tracker for each device found on your network, with a status `home`/`not_home`. The network is scanned every 15 seconds.
+
+If a scan fails (for example a missing permission or an interface that went down), the trackers become `unavailable` until scanning works again, instead of reporting everyone as away.
 
 ## Entity Attributes
 
@@ -70,18 +72,18 @@ Alternatively:
 2. Click **+ Add Integration**
 3. Search for "ARPScan"
 4. Select your network interface (auto-detected)
-5. Optionally adjust the network range, scan interval, and other settings
+5. Optionally adjust the network range, or enter specific hosts to probe
 6. Click Submit
+
+The other options are available afterwards under **Configure**. To change the interface or network later, use **Reconfigure** from the integration's menu.
 
 ### Configuration Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | **Network Interface** | Auto-detect | Network interface to scan (e.g., `eth0`, `wlan0`) |
-| **Network Range** | Auto-detect | Network in CIDR notation (e.g., `192.168.1.0/24`) |
-| **Scan Interval** | 15 seconds | How often to scan for devices (5-300) |
+| **Network Range** | Auto-detect | Network in CIDR notation (e.g., `192.168.1.0/24`), at most 1024 addresses (a `/22`) unless specific hosts are probed |
 | **Consider Home** | 180 seconds | Time before marking device as not_home (10-1800) |
-| **ARP Timeout** | 1.0 seconds | Timeout for each ARP request (0.5-10) |
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
 | **Enable Found Devices** | Enabled | Enable newly found device tracker entities by default |
 | **Track New Devices** | Enabled | Automatically create entities for newly discovered devices |
@@ -93,9 +95,9 @@ Alternatively:
 
 When **Resolve Hostnames** is enabled, the integration performs reverse DNS lookups to find device hostnames:
 
-- If a hostname is found (e.g., `skull-nuc`), it becomes the entity's display name
-- If no hostname is found, the IP address is used as the display name
-- Hostnames are cached per scan, so there's minimal performance impact
+- If a hostname is found (e.g., `skull-nuc`), it becomes the device's name
+- If no hostname is found, the MAC address (without colons) is used
+- Hostnames are cached for an hour, so a slow DNS server doesn't slow down the scans
 
 This is useful for identifying devices by their configured network names rather than just IP addresses.
 
@@ -107,27 +109,14 @@ After initial setup, you can modify settings via:
 3. Click **Configure**
 
 > [!NOTE]
-> All device trackers are separate devices—they aren't linked to ARP-Scanner instance by design.
-> If you see devices linked to the ARP-Scanner in the UI, it's Home Assistant linking other known devices because of MAC address matches.
+> Every device tracker gets a device, identified by its MAC address. If another integration (like your router) already knows that MAC, Home Assistant links the tracker to that device.
+> Devices you no longer need can be deleted from the device page.
 > When **Enable Found Devices** is off, new device trackers are added but disabled by default—enable them in the Home Assistant UI.
 > When **Track New Devices** is off, only previously known devices are tracked—new discoveries are ignored.
 
-## Migration from YAML
+## YAML Configuration
 
-If you have an existing YAML configuration, it will be **automatically imported** on first startup after upgrading to version 2.0.0. You'll see a warning in the logs:
-
-```
-YAML configuration for arpscan_tracker is deprecated. Your configuration has been imported. 
-Please remove the device_tracker configuration from YAML and restart Home Assistant.
-```
-
-After migration:
-1. Remove the YAML configuration from `configuration.yaml`
-2. Restart Home Assistant
-3. Manage settings through the UI
-
-> [!NOTE]
-> `known_devices.yaml` settings are not migrated. You need to reconfigure the entities in the Home Assistant UI.
+Configuration via `configuration.yaml` was removed in version 2.2.0. If you still have a `device_tracker` entry with `platform: arpscan_tracker`, remove it and add the integration via the UI.
 
 ## Permissions
 
@@ -166,6 +155,14 @@ docker run -d --name homeassistant \
 If you see "Permission denied for ARP scan" in the logs:
 - **Docker**: Add `--cap-add=NET_RAW` to your container
 - **Core**: Run with `sudo` or add `CAP_NET_RAW` capability
+
+**Phones flapping between home and away**
+
+Phones in Wi-Fi power save (notably Samsung/Android and iPhones) ignore broadcast ARP requests while asleep. Once a phone has been seen, every scan that misses it sends it a wake-up packet and an ARP request addressed to the phone itself, which it answers far more reliably. A phone that ignores all traffic in deep sleep can still drop out; raise **Consider Home** for those. Phones that use a new random Wi-Fi MAC address on every connection show up as a new device each time; use a fixed (per-network) private address instead.
+
+**Devices are unavailable**
+
+The last scan failed. The error is in the Home Assistant log, and in the diagnostics download on the integration page.
 
 **ZeroTier / VPN networks not detecting devices**
 

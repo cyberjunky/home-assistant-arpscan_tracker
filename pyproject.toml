@@ -12,6 +12,12 @@ warn_return_any = true
 warn_unused_ignores = true
 show_error_codes = true
 
+[[tool.mypy.overrides]]
+# Home Assistant 2026.9+ replaces voluptuous with probatio at runtime
+# (import voluptuous loads probatio), so voluptuous' own types don't apply
+module = ["voluptuous", "voluptuous.*"]
+follow_imports = "skip"
+
 [tool.ruff]
 target-version = "py314"
 line-length = 100

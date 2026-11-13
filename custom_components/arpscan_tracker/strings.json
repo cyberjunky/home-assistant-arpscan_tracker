@@ -3,42 +3,40 @@
         "step": {
             "user": {
                 "title": "ARP-Scan Device Tracker",
-                "description": "Configure network scanning for device tracking. The integration will scan your network using ARP requests to detect connected devices.",
+                "description": "Pick the network to scan for connected devices with ARP requests. More options are available after setup.",
                 "data": {
                     "interface": "Network Interface",
                     "network": "Network Range (CIDR)",
-                    "scan_interval": "Scan Interval",
-                    "consider_home": "Consider Home",
-                    "timeout": "ARP Timeout",
-                    "resolve_hostnames": "Resolve Hostnames (DNS)",
-                    "devices_enabled": "Enable Found Devices",
-                    "track_new_devices": "Track New Devices",
-                    "include": "Include IPs",
-                    "exclude": "Exclude IPs",
                     "hosts": "ZeroTier/VPN Hosts (IPs)"
                 },
                 "data_description": {
                     "interface": "Select a network interface from the list",
-                    "network": "Network range in CIDR notation (e.g., 192.168.1.0/24). Leave empty to auto-detect.",
-                    "scan_interval": "How often to scan for devices (5-300 seconds)",
-                    "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
-                    "timeout": "Timeout for each ARP request (0.5-10 seconds)",
-                    "resolve_hostnames": "Look up device hostnames via reverse DNS lookup",
-                    "devices_enabled": "Enable newly found device tracker entities by default. When disabled, new entities are added but disabled in the entity registry.",
-                    "track_new_devices": "Automatically create device tracker entities for newly discovered devices. When disabled, only previously known devices are tracked.",
-                    "include": "Only track devices with these IP addresses (comma-separated list)",
-                    "exclude": "Skip tracking devices with these IP addresses (comma-separated list)",
-                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)"
+                    "network": "Network range in CIDR notation (e.g., 192.168.1.0/24). Leave empty to auto-detect. Up to 1024 addresses (a /22) unless specific hosts are probed.",
+                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.). Comma-separated list."
+                }
+            },
+            "reconfigure": {
+                "title": "ARP-Scan Device Tracker",
+                "description": "Change the network interface or range to scan.",
+                "data": {
+                    "interface": "Network Interface",
+                    "network": "Network Range (CIDR)"
+                },
+                "data_description": {
+                    "interface": "Select a network interface from the list",
+                    "network": "Network range in CIDR notation (e.g., 192.168.1.0/24). Leave empty to auto-detect. Up to 1024 addresses (a /22) unless specific hosts are probed."
                 }
             }
         },
         "error": {
             "cannot_detect_network": "Could not detect network for the selected interface. Please specify the network range manually.",
-            "already_configured": "This interface is already configured."
+            "invalid_network": "Enter a valid IPv4 network in CIDR notation, e.g. 192.168.1.0/24.",
+            "network_too_large": "This network is too large to scan every 15 seconds. Enter a smaller range (at most 1024 addresses, a /22), or probe specific hosts.",
+            "invalid_ip": "Enter IPv4 addresses separated by commas."
         },
         "abort": {
             "already_configured": "This interface is already configured.",
-            "cannot_detect_network": "Could not detect network configuration. Please check your network settings."
+            "reconfigure_successful": "The interface and network were updated."
         }
     },
     "options": {
@@ -47,28 +45,29 @@
                 "title": "ARP-Scan Options",
                 "description": "Configure device tracking options.",
                 "data": {
-                    "scan_interval": "Scan Interval",
                     "consider_home": "Consider Home",
-                    "timeout": "ARP Timeout",
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
                     "devices_enabled": "Enable Found Devices",
                     "track_new_devices": "Track New Devices",
-                    "hosts": "ZeroTier/VPN Hosts (IPs)",
                     "include": "Include IPs",
-                    "exclude": "Exclude IPs"
+                    "exclude": "Exclude IPs",
+                    "hosts": "ZeroTier/VPN Hosts (IPs)"
                 },
                 "data_description": {
-                    "scan_interval": "How often to scan for devices (5-300 seconds)",
                     "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
-                    "timeout": "Timeout for each ARP request (0.5-10 seconds)",
-                    "resolve_hostnames": "Look up device hostnames via reverse DNS lookup (may slow down scans)",
+                    "resolve_hostnames": "Look up device hostnames via reverse DNS (cached)",
                     "devices_enabled": "Enable newly found device tracker entities by default. When disabled, new entities are added but disabled in the entity registry.",
                     "track_new_devices": "Automatically create device tracker entities for newly discovered devices. When disabled, only previously known devices are tracked.",
-                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)",
                     "include": "Only track devices with these IP addresses (comma-separated list)",
-                    "exclude": "Skip tracking devices with these IP addresses (comma-separated list)"
+                    "exclude": "Skip tracking devices with these IP addresses (comma-separated list)",
+                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.). Comma-separated list."
                 }
             }
+        },
+        "error": {
+            "invalid_ip": "Enter IPv4 addresses separated by commas.",
+            "include_and_exclude": "Use either Include IPs or Exclude IPs, not both.",
+            "network_too_large": "The configured network is too large to scan every 15 seconds. Keep probing specific hosts, or reconfigure the integration with a smaller network."
         }
     }
 }
