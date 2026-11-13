@@ -38,6 +38,8 @@ repos:
         types: [python]
         stages: [commit-msg, post-commit, manual]
         entry: mypy
+        # Parallel runs share .mypy_cache and can crash mypy
+        require_serial: true
         args:
           - --ignore-missing-imports
           - --check-untyped-defs

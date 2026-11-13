@@ -10,6 +10,8 @@
 - The ARP scan runs in a long-lived worker process instead of starting a new process (and importing scapy) every 15 seconds
 - The network range and host lists are validated; networks larger than 1024 addresses (/22) can only be used with specific hosts
 - Added a reconfigure flow to change the interface or network without removing the integration
+- Setup and reconfigure run a test scan, so a missing permission or broken interface is shown in the form
+- Scan errors are translatable
 - The setup form only asks for the interface, network and hosts; all other settings are under **Configure**
 - Include and exclude lists can no longer be used together
 - Specific hosts mode no longer uses another host's IP as sender address when the interface's own IP can't be read

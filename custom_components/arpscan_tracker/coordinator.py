@@ -1,7 +1,5 @@
 """Data update coordinator for the ARP-Scan Device Tracker integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -57,7 +55,11 @@ class ArpScanCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         try:
             devices = await self.scanner.async_scan()
         except ScanError as err:
-            raise UpdateFailed(f"ARP scan failed: {err}") from err
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="scan_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
         result: dict[str, dict[str, Any]] = {}
         for device in devices:

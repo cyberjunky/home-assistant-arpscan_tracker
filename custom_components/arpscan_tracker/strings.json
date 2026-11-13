@@ -32,7 +32,8 @@
             "cannot_detect_network": "Could not detect network for the selected interface. Please specify the network range manually.",
             "invalid_network": "Enter a valid IPv4 network in CIDR notation, e.g. 192.168.1.0/24.",
             "network_too_large": "This network is too large to scan every 15 seconds. Enter a smaller range (at most 1024 addresses, a /22), or probe specific hosts.",
-            "invalid_ip": "Enter IPv4 addresses separated by commas."
+            "invalid_ip": "Enter IPv4 addresses separated by commas.",
+            "cannot_scan": "A test scan failed: {error}"
         },
         "abort": {
             "already_configured": "This interface is already configured.",
@@ -68,6 +69,11 @@
             "invalid_ip": "Enter IPv4 addresses separated by commas.",
             "include_and_exclude": "Use either Include IPs or Exclude IPs, not both.",
             "network_too_large": "The configured network is too large to scan every 15 seconds. Keep probing specific hosts, or reconfigure the integration with a smaller network."
+        }
+    },
+    "exceptions": {
+        "scan_failed": {
+            "message": "ARP scan failed: {error}"
         }
     }
 }
