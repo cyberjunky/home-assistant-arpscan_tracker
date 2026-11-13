@@ -116,8 +116,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Filter devices based on include/exclude lists
         result: dict[str, dict[str, Any]] = {}
-        _LOGGER.debug("Processing %d scanned devices (include_list=%s, exclude_list=%s)",
-                      len(devices), include_list, exclude_list)
+        _LOGGER.debug(
+            "Processing %d scanned devices (include_list=%s, exclude_list=%s)",
+            len(devices),
+            include_list,
+            exclude_list,
+        )
 
         for device in devices:
             ip = device["ip"]
@@ -126,8 +130,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Apply include filter (if specified, only include listed IPs)
             if include_list:
                 if ip not in include_list:
-                    _LOGGER.debug("Device %s (%s) not in include list %s, skipping",
-                                  ip, mac, include_list)
+                    _LOGGER.debug(
+                        "Device %s (%s) not in include list %s, skipping", ip, mac, include_list
+                    )
                     continue
                 else:
                     _LOGGER.debug("Device %s (%s) IS in include list, keeping", ip, mac)
@@ -141,12 +146,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.warning("Device at %s has no MAC address, skipping", ip)
                 continue
 
-            _LOGGER.debug("Adding device to result: IP=%s, MAC=%s, hostname=%s, vendor=%s",
-                          ip, mac, device.get("hostname"), device.get("vendor"))
+            _LOGGER.debug(
+                "Adding device to result: IP=%s, MAC=%s, hostname=%s, vendor=%s",
+                ip,
+                mac,
+                device.get("hostname"),
+                device.get("vendor"),
+            )
             result[mac] = device
 
-        _LOGGER.debug("ARP scan returned %d devices after filtering: %s",
-                      len(result), list(result.keys()))
+        _LOGGER.debug(
+            "ARP scan returned %d devices after filtering: %s", len(result), list(result.keys())
+        )
         return result
 
     # Create coordinator

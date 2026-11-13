@@ -1,5 +1,10 @@
 ## Changelog
 
+### 2.1.9
+
+- Better detection of sleeping phones (Samsung/Android, iPhone) that ignore broadcast ARP in Wi-Fi power save (#83): known devices missing from the scan are now woken with a UDP packet and probed with a unicast ARP request, and devices the kernel recently confirmed as reachable count as present. This reduces home/not_home flapping, but phones that ignore all traffic in deep sleep can still drop out
+- Code formatted with `ruff format`
+
 ### 2.1.8
 
 - **Breaking**: Requires Home Assistant 2026.3.0 or newer (Python 3.14)

@@ -132,8 +132,11 @@ async def async_setup_entry(
 
         new_entities: list[ArpScanDeviceTracker] = []
 
-        _LOGGER.debug("Checking for new entities: coordinator has %d devices, %d already tracked",
-                      len(coordinator.data), len(tracked_macs))
+        _LOGGER.debug(
+            "Checking for new entities: coordinator has %d devices, %d already tracked",
+            len(coordinator.data),
+            len(tracked_macs),
+        )
 
         for mac, device_data in coordinator.data.items():
             if mac not in tracked_macs:
@@ -148,8 +151,12 @@ async def async_setup_entry(
                         devices_enabled=devices_enabled,
                     )
                 )
-                _LOGGER.info("Creating NEW device tracker entity for MAC %s (IP: %s, hostname: %s)",
-                            mac, device_data.get("ip"), device_data.get("hostname"))
+                _LOGGER.info(
+                    "Creating NEW device tracker entity for MAC %s (IP: %s, hostname: %s)",
+                    mac,
+                    device_data.get("ip"),
+                    device_data.get("hostname"),
+                )
 
         if new_entities:
             _LOGGER.info("Adding %d new device tracker entities", len(new_entities))
@@ -228,7 +235,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
             if last_seen_str := last_state.attributes.get(ATTR_LAST_SEEN):
                 try:
                     last_seen = dt_util.parse_datetime(last_seen_str)
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     last_seen = None
                 # parse_datetime returns None for unparsable input; keep the
                 # initial value in that case
