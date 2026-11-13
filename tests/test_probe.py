@@ -45,10 +45,13 @@ class FakeLan:
         self.sleepers = sleepers or set()
         self.unicast_probes: list[tuple[str, str]] = []
         self.sender_ips: list[str | None] = []
+        self.broadcasts: list[str] = []
+        self.calls: list[dict[str, Any]] = []
 
     def srp(self, packets: Any, **kwargs: Any) -> tuple[list[Any], list[Any]]:
         """Return (answered, unanswered) like scapy's srp."""
         answered = []
+        self.calls.append(kwargs)
         for packet in packets if isinstance(packets, list) else [packets]:
             # Read fields without building the packet, which would look up
             # the interface's MAC on the real host
@@ -56,7 +59,9 @@ class FakeLan:
             pdst = packet[ARP].pdst
             self.sender_ips.append(packet[ARP].getfieldval("psrc"))
             for ip in [pdst] if isinstance(pdst, str) else list(pdst):
-                if dst != BROADCAST:
+                if dst == BROADCAST:
+                    self.broadcasts.append(ip)
+                else:
                     self.unicast_probes.append((dst, ip))
                 mac = self.devices.get(ip)
                 if mac is None:
@@ -260,12 +265,95 @@ def test_unicast_probe_failure_keeps_scan_result() -> None:
     assert found == {ROUTER_MAC: ROUTER_IP}
 
 
+def test_sweep_spreads_out_broadcasts() -> None:
+    """A sweep retries once and spaces its broadcast requests."""
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC})
+
+    _probe(lan)
+
+    assert lan.calls == [
+        {"timeout": 1.5, "iface": "eth0", "verbose": 0, "retry": 1, "inter": probe_mod.SWEEP_INTER}
+    ]
+
+
+def test_known_devices_probed_without_broadcast() -> None:
+    """Between sweeps the known devices are ARPed directly, nothing else."""
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC, PHONE_IP: PHONE_MAC, "192.168.1.4": OUTSIDE_MAC})
+
+    found, woken = _probe(
+        lan, sweep=False, known_devices={ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP}
+    )
+
+    # The unknown device at .4 is left for the next sweep
+    assert found == {ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP}
+    assert lan.broadcasts == []
+    assert sorted(lan.unicast_probes) == [(ROUTER_MAC, ROUTER_IP), (PHONE_MAC, PHONE_IP)]
+    # Devices that answered right away are not woken
+    assert woken == []
+
+
+def test_known_device_missing_between_sweeps_is_woken() -> None:
+    """A known device that misses the direct probe gets the sleeping-phone treatment."""
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC})
+    phone_back = [Neighbor(2, NUD_REACHABLE, PHONE_IP, PHONE_MAC)]
+
+    found, woken = _probe(
+        lan,
+        neighbors=[[], [], phone_back],
+        sweep=False,
+        known_devices={ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP},
+    )
+
+    assert found == {ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP}
+    assert woken == [PHONE_IP]
+    assert lan.broadcasts == []
+
+
+def test_neighbors_probed_between_sweeps() -> None:
+    """Devices from the kernel neighbor table are probed between sweeps too."""
+    lan = FakeLan({PHONE_IP: PHONE_MAC})
+
+    found, _woken = _probe(
+        lan, neighbors=[[Neighbor(2, NUD_STALE, PHONE_IP, PHONE_MAC)]], sweep=False
+    )
+
+    assert found == {PHONE_MAC: PHONE_IP}
+    assert lan.broadcasts == []
+
+
+def test_nothing_known_between_sweeps() -> None:
+    """Without known devices there is nothing to probe until the next sweep."""
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC})
+
+    found, woken = _probe(lan, sweep=False)
+
+    assert found == {}
+    assert woken == []
+    assert lan.calls == []
+
+
+def test_hosts_mode_ignores_sweep_flag() -> None:
+    """Configured hosts are always probed."""
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC})
+
+    found, _woken = _probe(lan, network=None, hosts=[ROUTER_IP], sweep=False)
+
+    assert found == {ROUTER_MAC: ROUTER_IP}
+
+
 def test_handle_request() -> None:
     """Requests are answered with [ip, mac] pairs or an error message."""
     with patch.object(ArpProber, "probe", return_value={ROUTER_MAC: ROUTER_IP}):
         assert handle_request({"interface": "eth0", "network": NETWORK}) == {
             "devices": [[ROUTER_IP, ROUTER_MAC]]
         }
+    with patch.object(ArpProber, "__init__", return_value=None) as init, patch.object(
+        ArpProber, "probe", return_value={}
+    ):
+        handle_request({"interface": "eth0", "network": NETWORK})
+        assert init.call_args.kwargs["sweep"] is True
+        handle_request({"interface": "eth0", "network": NETWORK, "sweep": False})
+        assert init.call_args.kwargs["sweep"] is False
     with patch.object(ArpProber, "probe", side_effect=ScanError("no permission")):
         assert handle_request({"interface": "eth0", "network": NETWORK}) == {
             "error": "no permission"

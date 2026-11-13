@@ -28,7 +28,7 @@ DEFAULT_TRACK_NEW_DEVICES: Final = True
 SCAN_INTERVAL: Final = timedelta(seconds=15)
 
 # Largest network scanned by broadcast; every address gets an ARP request
-# (with retries) on every scan. 1024 addresses is a /22.
+# (with a retry) on every sweep. 1024 addresses is a /22.
 MAX_NETWORK_ADDRESSES: Final = 1024
 
 # Platforms

@@ -25,6 +25,13 @@ CLOSE_TIMEOUT = 5.0
 # Max size of one protocol line from the worker
 _LINE_LIMIT = 4 * 1024 * 1024
 
+# Seconds between broadcast sweeps of the whole network, which find new
+# devices. The scans in between ARP only the known devices, directly.
+SWEEP_INTERVAL = 300.0
+# A known device that disappears (it may have a new IP) triggers an early
+# sweep, but no sooner than this many seconds after the last one
+MIN_SWEEP_GAP = 60.0
+
 # Reverse DNS results are cached; lookups that failed are retried sooner
 HOSTNAME_TTL = 3600.0
 HOSTNAME_RETRY = 300.0
@@ -193,6 +200,10 @@ class ArpScanner:
         self._worker = _ProbeWorker()
         # MAC -> IP of devices seen before, probed directly when they go quiet
         self._known_devices: dict[str, str] = {}
+        # MACs found by the last scan, and when the last sweep ran
+        self._present: set[str] = set()
+        self._last_sweep: float | None = None
+        self._sweep_soon = False
         # (mac, ip) -> (hostname, expiry as monotonic time)
         self._hostnames: dict[tuple[str, str], tuple[str | None, float]] = {}
         self._hostname_semaphore = asyncio.Semaphore(HOSTNAME_LOOKUP_CONCURRENCY)
@@ -228,20 +239,38 @@ class ArpScanner:
         Raises:
             ScanError: The scan could not be performed.
         """
+        now = time.monotonic()
+        sweep = self._needs_sweep(now)
         pairs = await self._worker.async_request(
             {
                 "interface": self._interface,
                 "network": self._network,
                 "hosts": self._hosts,
                 "known_devices": self._known_devices,
+                "sweep": sweep,
             }
         )
+        if sweep:
+            self._last_sweep = now
+            self._sweep_soon = False
+        present = {mac for _ip, mac in pairs}
+        if self._present - present:
+            # Gone, or moved to an IP we don't know yet
+            self._sweep_soon = True
+        self._present = present
         self._remember_devices(pairs)
         return await self._async_enrich(pairs)
 
     async def async_close(self) -> None:
         """Stop the probe worker."""
         await self._worker.async_close()
+
+    def _needs_sweep(self, now: float) -> bool:
+        """Return True if this scan should broadcast to the whole network."""
+        if self._last_sweep is None:
+            return True
+        since = now - self._last_sweep
+        return since >= SWEEP_INTERVAL or (self._sweep_soon and since >= MIN_SWEEP_GAP)
 
     def _remember_devices(self, pairs: list[list[str]]) -> None:
         """Remember MAC -> IP of found devices so later scans can probe them.

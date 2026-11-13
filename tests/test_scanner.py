@@ -228,3 +228,64 @@ async def test_real_worker_reports_errors() -> None:
     with pytest.raises(ScanError):
         await scanner.async_scan()
     await scanner.async_close()
+
+
+async def _scan_at(scanner: ArpScanner, now: float) -> None:
+    """Run a scan at the given monotonic time."""
+    with patch.object(scanner_mod.time, "monotonic", return_value=now):
+        await scanner.async_scan()
+
+
+async def test_full_sweep_only_every_sweep_interval(
+    scanner: ArpScanner, fake_network: FakeNetwork
+) -> None:
+    """The network is swept on the first scan and then every SWEEP_INTERVAL."""
+    for now in (1000.0, 1015.0, 1030.0, 1000.0 + scanner_mod.SWEEP_INTERVAL, 1315.0):
+        await _scan_at(scanner, now)
+    await scanner.async_close()
+
+    assert [request["sweep"] for request in fake_network.requests] == [
+        True,
+        False,
+        False,
+        True,
+        False,
+    ]
+
+
+async def test_missing_device_triggers_early_sweep(
+    scanner: ArpScanner, fake_network: FakeNetwork
+) -> None:
+    """A device that disappears causes a sweep, at most once per MIN_SWEEP_GAP."""
+    gap = scanner_mod.MIN_SWEEP_GAP
+    await _scan_at(scanner, 1000.0)
+    # The phone is gone (or moved to a new IP)
+    fake_network.devices = [(LAPTOP_IP, MAC_LAPTOP)]
+    await _scan_at(scanner, 1015.0)
+    # Too soon after the first sweep
+    await _scan_at(scanner, 1000.0 + gap - 1)
+    await _scan_at(scanner, 1000.0 + gap)
+    # Swept; the phone staying away doesn't trigger more sweeps
+    await _scan_at(scanner, 1000.0 + 2 * gap + 1)
+    await scanner.async_close()
+
+    assert [request["sweep"] for request in fake_network.requests] == [
+        True,
+        False,
+        False,
+        True,
+        False,
+    ]
+
+
+async def test_failed_sweep_is_retried(scanner: ArpScanner, fake_network: FakeNetwork) -> None:
+    """A sweep that failed is attempted again on the next scan."""
+    fake_network.error = "interface down"
+    with pytest.raises(ScanError):
+        await _scan_at(scanner, 1000.0)
+    fake_network.error = None
+    await _scan_at(scanner, 1015.0)
+    await _scan_at(scanner, 1030.0)
+    await scanner.async_close()
+
+    assert [request["sweep"] for request in fake_network.requests] == [True, True, False]

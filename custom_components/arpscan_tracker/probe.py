@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 1.5  # seconds per ARP round
+# Seconds between the broadcast requests of a network sweep. Every broadcast
+# reaches every Wi-Fi client at the lowest rate; spacing them out keeps a
+# sweep from flooding the access point (and ESP32 devices on it). A /24
+# takes about half a second.
+SWEEP_INTER = 0.002
 BROADCAST_MAC = "ff:ff:ff:ff:ff:ff"
 
 # UDP port used to wake sleeping devices before probing them (mDNS). Any
@@ -238,7 +243,9 @@ def send_wake_packets(ips: Iterable[str], port: int = WAKE_PORT) -> None:
         _LOGGER.debug("Failed to open wake socket: %s", err)
 
 
-def _srp(packets: Any, interface: str, timeout: float, retry: int) -> list[tuple[str, str]]:
+def _srp(
+    packets: Any, interface: str, timeout: float, retry: int, inter: float = 0
+) -> list[tuple[str, str]]:
     """Send ARP requests and return the (ip, mac) of every reply.
 
     Raises:
@@ -248,7 +255,9 @@ def _srp(packets: Any, interface: str, timeout: float, retry: int) -> list[tuple
 
     conf.verb = 0
     try:
-        answered, _ = srp(packets, timeout=timeout, iface=interface, verbose=0, retry=retry)
+        answered, _ = srp(
+            packets, timeout=timeout, iface=interface, verbose=0, retry=retry, inter=inter
+        )
     except PermissionError as err:
         raise ScanError(
             f"Permission denied, Home Assistant needs the CAP_NET_RAW capability: {err}"
@@ -268,6 +277,7 @@ class ArpProber:
         hosts: list[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         known_devices: dict[str, str] | None = None,
+        sweep: bool = True,
     ) -> None:
         """Initialize the prober.
 
@@ -278,6 +288,8 @@ class ArpProber:
             timeout: Seconds to wait for replies per ARP round
             known_devices: MAC -> IP of devices seen before; any of these the
                 scan misses are probed directly (sleeping phones)
+            sweep: Broadcast to the whole network; if False, only the known
+                devices (and kernel neighbors) are probed, with unicast ARP
         """
         self._interface = interface or get_default_interface()
         self._network = network
@@ -286,6 +298,7 @@ class ArpProber:
         self._hosts = hosts or []
         self._timeout = timeout
         self._known_devices = known_devices or {}
+        self._sweep = sweep
 
     def probe(self) -> dict[str, str]:
         """Probe the network.
@@ -299,7 +312,12 @@ class ArpProber:
         if not (interface := self._interface):
             raise ScanError("No network interface available")
 
-        found = self._probe_hosts(interface) if self._hosts else self._probe_network(interface)
+        if self._hosts:
+            found = self._probe_hosts(interface)
+        elif self._sweep:
+            found = self._probe_network(interface)
+        else:
+            found = self._probe_known(interface)
         found.update(self._probe_sleeping(interface, found))
         return found
 
@@ -312,7 +330,7 @@ class ArpProber:
 
         _LOGGER.debug("ARP scan of %s on %s", self._network, interface)
         packet = Ether(dst=BROADCAST_MAC) / ARP(pdst=self._network)
-        replies = _srp(packet, interface, self._timeout, retry=3)
+        replies = _srp(packet, interface, self._timeout, retry=1, inter=SWEEP_INTER)
         # Keep the first reply per MAC (like arp-scan -g)
         found: dict[str, str] = {}
         for ip, mac in replies:
@@ -346,6 +364,32 @@ class ArpProber:
         replies = _srp(packets, interface, self._timeout * 2, retry=5)
         return {mac: ip for ip, mac in replies}
 
+    def _probe_known(self, interface: str) -> dict[str, str]:
+        """ARP the known devices directly instead of sweeping the network.
+
+        Requests addressed to a device's MAC reach only that device, so this
+        costs the Wi-Fi a fraction of a broadcast sweep. Devices that don't
+        answer are woken and probed again by _probe_sleeping.
+        """
+        if not self._network:
+            raise ScanError(f"No IPv4 network found for interface {interface}")
+        targets = self._candidates(read_neighbor_table(interface), {})
+        if not targets:
+            return {}
+        _LOGGER.debug("ARP probe of %d known devices on %s", len(targets), interface)
+        return self._unicast_arp(interface, targets)
+
+    def _candidates(self, neighbors: list[Neighbor], found: dict[str, str]) -> dict[str, str]:
+        """Return MAC -> IP of the known devices in scope not already found."""
+        # The latest kernel knowledge wins
+        candidates = dict(self._known_devices)
+        for neighbor in neighbors:
+            if neighbor.state & _NUD_CANDIDATE:
+                candidates[neighbor.mac] = neighbor.ip
+        return {
+            mac: ip for mac, ip in candidates.items() if mac not in found and self._in_scope(ip)
+        }
+
     def _in_scope(self, ip: str) -> bool:
         """Return True if ip belongs to the configured hosts or network."""
         if self._hosts:
@@ -372,15 +416,7 @@ class ArpProber:
             MAC -> IP of additional devices not already in found.
         """
         neighbors = read_neighbor_table(interface)
-
-        # MAC -> IP of devices worth probing, the latest kernel knowledge wins
-        candidates = dict(self._known_devices)
-        for neighbor in neighbors:
-            if neighbor.state & _NUD_CANDIDATE:
-                candidates[neighbor.mac] = neighbor.ip
-        candidates = {
-            mac: ip for mac, ip in candidates.items() if mac not in found and self._in_scope(ip)
-        }
+        candidates = self._candidates(neighbors, found)
 
         present: dict[str, str] = {}
         if candidates:
@@ -425,6 +461,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any]:
             network=request.get("network"),
             hosts=request.get("hosts"),
             known_devices=request.get("known_devices"),
+            sweep=request.get("sweep", True),
         ).probe()
     except ScanError as err:
         return {"error": str(err)}
