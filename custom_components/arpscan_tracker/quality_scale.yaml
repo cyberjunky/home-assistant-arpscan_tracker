@@ -14,16 +14,14 @@ rules:
     comment: The integration has no actions.
   docs-high-level-description: done
   docs-installation-instructions: done
-  docs-removal-instructions: todo
+  docs-removal-instructions: done
   entity-event-setup:
     status: exempt
     comment: Entities only follow the coordinator.
   entity-unique-id: done
   has-entity-name: done
   runtime-data: done
-  test-before-configure:
-    status: todo
-    comment: The flow checks that the interface has a network, but doesn't run a test scan.
+  test-before-configure: done
   test-before-setup: done
   unique-config-entry: done
 
@@ -68,7 +66,7 @@ rules:
   entity-translations:
     status: exempt
     comment: Entities are named after their device.
-  exception-translations: todo
+  exception-translations: done
   icon-translations:
     status: exempt
     comment: Device trackers use the default icons.

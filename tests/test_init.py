@@ -114,6 +114,8 @@ async def test_scan_error_makes_entities_unavailable(
     await hass.async_block_till_done()
 
     assert not coordinator.last_update_success
+    assert coordinator.last_exception.translation_key == "scan_failed"
+    assert str(coordinator.last_exception) == "ARP scan failed: interface down"
     assert hass.states.get("device_tracker.phone").state == STATE_UNAVAILABLE
 
     mock_scan.side_effect = None

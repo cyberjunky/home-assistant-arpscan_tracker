@@ -23,9 +23,9 @@ from custom_components.arpscan_tracker.const import (
     DOMAIN,
 )
 
-from .conftest import ENTRY_OPTIONS, INTERFACE, NETWORK, make_entry
+from .conftest import ENTRY_OPTIONS, INTERFACE, NETWORK, FakeNetwork, make_entry
 
-pytestmark = pytest.mark.usefixtures("mock_interfaces")
+pytestmark = pytest.mark.usefixtures("mock_interfaces", "fake_network")
 
 
 @pytest.fixture(autouse=True)
@@ -130,6 +130,31 @@ async def test_user_flow_detected_network_too_large(hass: HomeAssistant) -> None
     assert result["errors"] == {CONF_NETWORK: "network_too_large"}
 
 
+async def test_user_flow_test_scan_fails(hass: HomeAssistant, fake_network: FakeNetwork) -> None:
+    """A failing test scan is shown in the form, and setup works once it scans."""
+    fake_network.error = "Permission denied, Home Assistant needs the CAP_NET_RAW capability"
+
+    result = await _user_flow(hass, {CONF_INTERFACE: INTERFACE})
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_scan"}
+    assert "CAP_NET_RAW" in result["description_placeholders"]["error"]
+    # The test scan's worker is stopped again
+    assert all(proc.returncode is not None for proc in fake_network.processes)
+
+    fake_network.error = None
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_INTERFACE: INTERFACE}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert fake_network.requests[-1] == {
+        "interface": INTERFACE,
+        "network": NETWORK,
+        "hosts": None,
+        "known_devices": {},
+    }
+
+
 async def test_user_flow_already_configured(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
@@ -174,6 +199,23 @@ async def test_reconfigure_flow_invalid_network(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {CONF_NETWORK: "invalid_network"}
+
+
+async def test_reconfigure_flow_test_scan_fails(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, fake_network: FakeNetwork
+) -> None:
+    """A failing test scan keeps the old interface and network."""
+    mock_config_entry.add_to_hass(hass)
+    fake_network.error = "Sending ARP requests on wlan0 failed: No such device"
+
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_INTERFACE: "wlan0", CONF_NETWORK: "192.168.7.0/24"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_scan"}
+    assert mock_config_entry.data[CONF_INTERFACE] == INTERFACE
 
 
 async def test_reconfigure_flow_interface_in_use(

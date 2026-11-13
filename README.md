@@ -114,6 +114,14 @@ After initial setup, you can modify settings via:
 > When **Enable Found Devices** is off, new device trackers are added but disabled by default—enable them in the Home Assistant UI.
 > When **Track New Devices** is off, only previously known devices are tracked—new discoveries are ignored.
 
+## Removing the Integration
+
+1. Go to **Settings → Devices & Services → ARP-Scan**
+2. Open the menu (⋮) of the entry and select **Delete**
+3. If you installed via HACS, remove the repository in HACS as well and restart Home Assistant
+
+Deleting the entry removes all its device trackers and their devices. Automations using them need to be updated.
+
 ## YAML Configuration
 
 Configuration via `configuration.yaml` was removed in version 2.2.0. If you still have a `device_tracker` entry with `platform: arpscan_tracker`, remove it and add the integration via the UI.

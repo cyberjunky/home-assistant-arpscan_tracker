@@ -26,7 +26,13 @@ from .const import (
     MAX_NETWORK_ADDRESSES,
 )
 from .coordinator import ArpScanConfigEntry
-from .probe import get_available_interfaces, get_default_interface, get_interface_network
+from .probe import (
+    ScanError,
+    get_available_interfaces,
+    get_default_interface,
+    get_interface_network,
+)
+from .scanner import ArpScanner
 
 
 def _parse_ip_list(value: str | None) -> list[str]:
@@ -52,6 +58,26 @@ def _validate_network(network: str, hosts: list[str]) -> tuple[str | None, str |
     if not hosts and parsed.num_addresses > MAX_NETWORK_ADDRESSES:
         return None, "network_too_large"
     return str(parsed), None
+
+
+async def _async_test_scan(
+    interface: str, network: str | None, hosts: list[str], placeholders: dict[str, str]
+) -> str | None:
+    """Run one scan to check that scanning works.
+
+    Returns an error key, with the reason in placeholders, or None.
+    """
+    scanner = ArpScanner(
+        interface=interface, network=network, hosts=hosts or None, resolve_hostnames=False
+    )
+    try:
+        await scanner.async_scan()
+    except ScanError as err:
+        placeholders["error"] = str(err)
+        return "cannot_scan"
+    finally:
+        await scanner.async_close()
+    return None
 
 
 def _interface_options(interfaces: list[str], default: str | None) -> list[str]:
@@ -115,6 +141,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Pick the interface and network to scan."""
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {"error": ""}
 
         if user_input is not None:
             interface = user_input[CONF_INTERFACE]
@@ -127,6 +154,10 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors[CONF_HOSTS] = "invalid_ip"
                 hosts = []
             network = await self._async_validate_target(user_input, hosts, errors)
+            if not errors and (
+                error := await _async_test_scan(interface, network, hosts, placeholders)
+            ):
+                errors["base"] = error
 
             if not errors:
                 return self.async_create_entry(
@@ -150,6 +181,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(schema, user_input),
             errors=errors,
+            description_placeholders=placeholders,
         )
 
     async def async_step_reconfigure(
@@ -158,6 +190,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         """Change the interface or network of an entry."""
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {"error": ""}
 
         if user_input is not None:
             interface = user_input[CONF_INTERFACE]
@@ -168,6 +201,10 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
 
             hosts = entry.options.get(CONF_HOSTS, [])
             network = await self._async_validate_target(user_input, hosts, errors)
+            if not errors and (
+                error := await _async_test_scan(interface, network, hosts, placeholders)
+            ):
+                errors["base"] = error
             if not errors:
                 return self.async_update_reload_and_abort(
                     entry,
@@ -183,6 +220,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(schema, user_input),
             errors=errors,
+            description_placeholders=placeholders,
         )
 
     @staticmethod

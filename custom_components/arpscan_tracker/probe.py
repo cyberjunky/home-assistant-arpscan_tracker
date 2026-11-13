@@ -11,8 +11,6 @@ Protocol: one JSON request per line on stdin, answered by one JSON line on
 stdout: ``{"devices": [[ip, mac], ...]}`` or ``{"error": "message"}``.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import os
