@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2.2.1
+
+- Much less broadcast traffic: the network is swept with broadcast ARP every 5 minutes instead of every 15 seconds, with one retry instead of three and the requests spread out. Known devices are still checked every 15 seconds with ARP requests addressed to them directly, so home/away detection is as fast as before; new devices can take up to 5 minutes to show up. A full broadcast sweep every 15 seconds could disturb Wi-Fi clients, notably ESP32-based devices
+
 ### 2.2.0
 
 - **Breaking**: YAML configuration (`device_tracker` with `platform: arpscan_tracker`) is removed; add the integration via the UI instead
@@ -19,7 +23,6 @@
 - Devices can be removed from the device page
 - Added diagnostics
 - A device is renamed when its hostname shows up or changes while Home Assistant runs (#138)
-- Much less broadcast traffic: the network is swept with broadcast ARP every 5 minutes instead of every 15 seconds, with one retry instead of three and the requests spread out. Known devices are still checked every 15 seconds with ARP requests addressed to them directly, so home/away detection is as fast as before; new devices can take up to 5 minutes to show up. A full broadcast sweep every 15 seconds could disturb Wi-Fi clients, notably ESP32-based devices
 - Uses the config entry runtime data and passes the config entry to the coordinator
 
 ### 2.1.9
