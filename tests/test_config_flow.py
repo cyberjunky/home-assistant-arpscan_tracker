@@ -152,6 +152,7 @@ async def test_user_flow_test_scan_fails(hass: HomeAssistant, fake_network: Fake
         "network": NETWORK,
         "hosts": None,
         "known_devices": {},
+        "sweep": True,
     }
 
 

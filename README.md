@@ -22,7 +22,7 @@ A Home Assistant custom integration that tracks devices on your network using AR
 
 ## Device Tracker
 
-The integration creates a device tracker for each device found on your network, with a status `home`/`not_home`. The network is scanned every 15 seconds.
+The integration creates a device tracker for each device found on your network, with a status `home`/`not_home`. Devices are checked every 15 seconds: the known devices get an ARP request addressed to them directly, and every 5 minutes the whole network is swept with broadcast ARP to find new devices. A known device that disappears triggers an early sweep (at most once a minute), in case it moved to a new IP address. This keeps broadcast traffic low, which Wi-Fi networks and ESP32-based devices handle poorly.
 
 If a scan fails (for example a missing permission or an interface that went down), the trackers become `unavailable` until scanning works again, instead of reporting everyone as away.
 
