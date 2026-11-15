@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2.2.2
+
+- Less traffic for devices that are away: between sweeps, a known device that doesn't answer its direct ARP request is no longer asked three times before it is woken and asked again; it is asked once. Detection is unchanged, because a device that misses that request is still woken and asked three more times in the same scan
+
 ### 2.2.1
 
 - Much less broadcast traffic: the network is swept with broadcast ARP every 5 minutes instead of every 15 seconds, with one retry instead of three and the requests spread out. Known devices are still checked every 15 seconds with ARP requests addressed to them directly, so home/away detection is as fast as before; new devices can take up to 5 minutes to show up. A full broadcast sweep every 15 seconds could disturb Wi-Fi clients, notably ESP32-based devices
