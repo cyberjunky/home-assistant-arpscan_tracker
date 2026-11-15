@@ -377,7 +377,10 @@ class ArpProber:
         if not targets:
             return {}
         _LOGGER.debug("ARP probe of %d known devices on %s", len(targets), interface)
-        return self._unicast_arp(interface, targets)
+        # One try: a device that doesn't answer is woken and asked again, with
+        # retries, by _probe_sleeping in this same scan. Retrying here too sent
+        # every absent device three extra requests per scan for nothing.
+        return self._unicast_arp(interface, targets, retry=0)
 
     def _candidates(self, neighbors: list[Neighbor], found: dict[str, str]) -> dict[str, str]:
         """Return MAC -> IP of the known devices in scope not already found."""
@@ -441,7 +444,9 @@ class ArpProber:
                 present[neighbor.mac] = neighbor.ip
         return present
 
-    def _unicast_arp(self, interface: str, targets: dict[str, str]) -> dict[str, str]:
+    def _unicast_arp(
+        self, interface: str, targets: dict[str, str], retry: int = 2
+    ) -> dict[str, str]:
         """Send ARP requests addressed to known MAC/IP pairs.
 
         Returns:
@@ -450,7 +455,7 @@ class ArpProber:
         from scapy.all import ARP, Ether  # type: ignore[attr-defined]
 
         packets = [Ether(dst=mac) / ARP(pdst=ip, hwdst=mac) for mac, ip in targets.items()]
-        return {mac: ip for ip, mac in _srp(packets, interface, self._timeout, retry=2)}
+        return {mac: ip for ip, mac in _srp(packets, interface, self._timeout, retry=retry)}
 
 
 def handle_request(request: dict[str, Any]) -> dict[str, Any]:
