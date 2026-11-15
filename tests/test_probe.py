@@ -309,6 +309,57 @@ def test_known_device_missing_between_sweeps_is_woken() -> None:
     assert lan.broadcasts == []
 
 
+def test_absent_device_is_asked_once_before_the_wake_round() -> None:
+    """The direct probe between sweeps tries once; the retries come after the wake.
+
+    A device that misses the first request is still woken and asked three
+    more times in the same scan, so it is found just as before.
+    """
+    lan = FakeLan({ROUTER_IP: ROUTER_MAC})
+
+    _probe(lan, sweep=False, known_devices={ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP})
+
+    assert [call["retry"] for call in lan.calls] == [0, 2]
+
+
+class _DozingLan(FakeLan):
+    """A LAN whose phone ignores everything until the wake packet arrives."""
+
+    def __init__(self, devices: dict[str, str], dozer: str) -> None:
+        super().__init__(devices)
+        self.dozer = dozer
+        self.awake = False
+
+    def srp(self, packets: Any, **kwargs: Any) -> tuple[list[Any], list[Any]]:
+        answered, unanswered = super().srp(packets, **kwargs)
+        if not self.awake:
+            answered = [a for a in answered if a[1].psrc != self.dozer]
+        return answered, unanswered
+
+
+def test_device_missing_the_single_try_is_found_after_the_wake() -> None:
+    """A phone that ignores the one direct request is still found in the same scan."""
+    lan = _DozingLan({ROUTER_IP: ROUTER_MAC, PHONE_IP: PHONE_MAC}, dozer=PHONE_IP)
+
+    def wake(ips: Any) -> None:
+        lan.awake = True
+
+    with (
+        patch("scapy.all.srp", side_effect=lan.srp),
+        patch.object(probe_mod, "read_neighbor_table", return_value=[]),
+        patch.object(probe_mod, "send_wake_packets", side_effect=wake),
+    ):
+        found = ArpProber(
+            interface="eth0",
+            network=NETWORK,
+            sweep=False,
+            known_devices={ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP},
+        ).probe()
+
+    assert found == {ROUTER_MAC: ROUTER_IP, PHONE_MAC: PHONE_IP}
+    assert lan.awake
+
+
 def test_neighbors_probed_between_sweeps() -> None:
     """Devices from the kernel neighbor table are probed between sweeps too."""
     lan = FakeLan({PHONE_IP: PHONE_MAC})
@@ -347,8 +398,9 @@ def test_handle_request() -> None:
         assert handle_request({"interface": "eth0", "network": NETWORK}) == {
             "devices": [[ROUTER_IP, ROUTER_MAC]]
         }
-    with patch.object(ArpProber, "__init__", return_value=None) as init, patch.object(
-        ArpProber, "probe", return_value={}
+    with (
+        patch.object(ArpProber, "__init__", return_value=None) as init,
+        patch.object(ArpProber, "probe", return_value={}),
     ):
         handle_request({"interface": "eth0", "network": NETWORK})
         assert init.call_args.kwargs["sweep"] is True
