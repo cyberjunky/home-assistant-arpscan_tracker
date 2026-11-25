@@ -13,6 +13,7 @@ from pytest_homeassistant.common import (
     MockConfigEntry,
     async_fire_time_changed,
     mock_restore_cache,
+    mock_restore_cache_with_extra_data,
 )
 
 from custom_components.arpscan_tracker.const import (
@@ -60,7 +61,8 @@ async def test_entities_created_from_scan(
     assert phone.attributes["vendor"] == "Acme"
     assert phone.attributes["host_name"] == "phone"
     assert phone.attributes["source_type"] == "router"
-    assert "last_seen" in phone.attributes
+    # Only a device that is away says when it was last seen
+    assert "last_seen" not in phone.attributes
     assert _device(hass, mock_config_entry, MAC_PHONE).name == "phone"
 
     # Without a hostname the device is named after the MAC
@@ -101,6 +103,7 @@ async def test_sleeping_phone_stays_home_within_consider_home(
     """
     entry = make_entry(**{CONF_CONSIDER_HOME: 30})
     await _setup(hass, entry)
+    seen_at = dt_util.utcnow()
     phone_id = _entity_id(hass, MAC_PHONE)
     assert fake_network.requests[0]["known_devices"] == {}
 
@@ -111,14 +114,46 @@ async def test_sleeping_phone_stays_home_within_consider_home(
 
     assert fake_network.requests[-1]["known_devices"][MAC_PHONE] == "192.168.1.10"
     assert hass.states.get(phone_id).state == STATE_HOME
+    assert "last_seen" not in hass.states.get(phone_id).attributes
 
     freezer.tick(timedelta(seconds=30))
     async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done(wait_background_tasks=True)
 
-    assert hass.states.get(phone_id).state == STATE_NOT_HOME
+    away = hass.states.get(phone_id)
+    assert away.state == STATE_NOT_HOME
+    # When it answered its last scan, and that stands still while it is away
+    assert away.attributes["last_seen"] == seen_at.isoformat()
+    freezer.tick(SCAN_INTERVAL)
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(phone_id).attributes["last_seen"] == seen_at.isoformat()
+    assert hass.states.get(phone_id).last_updated == away.last_updated
 
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_a_device_at_home_writes_no_new_state_per_scan(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, fake_network: FakeNetwork
+) -> None:
+    """Being seen again changes nothing in the state: no row per scan in a recorder."""
+    entry = make_entry()
+    await _setup(hass, entry)
+    phone_id = _entity_id(hass, MAC_PHONE)
+    first = hass.states.get(phone_id)
+
+    for _ in range(3):
+        freezer.tick(SCAN_INTERVAL)
+        async_fire_time_changed(hass, dt_util.utcnow())
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    now = hass.states.get(phone_id)
+    assert now.state == STATE_HOME
+    assert now.attributes == first.attributes
+    assert now.last_updated == first.last_updated
+
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
 
 
 async def test_track_new_devices_disabled(hass: HomeAssistant, mock_scan: AsyncMock) -> None:
@@ -264,9 +299,61 @@ async def test_last_seen_restored(hass: HomeAssistant, mock_scan: AsyncMock) -> 
 
     state = hass.states.get("device_tracker.old_device")
     assert state.state == STATE_HOME
-    assert state.attributes["last_seen"] == last_seen.isoformat()
+    assert "last_seen" not in state.attributes
     assert state.attributes["host_name"] == "old"
     assert state.attributes["vendor"] == "Acme"
+
+
+async def test_last_seen_of_a_home_device_survives_a_restart(
+    hass: HomeAssistant, mock_scan: AsyncMock
+) -> None:
+    """A home device has no last_seen in its state; it is restored from what is kept beside it."""
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "device_tracker", DOMAIN, MAC_OLD, config_entry=entry, suggested_object_id="old_device"
+    )
+    recent = dt_util.utcnow() - timedelta(seconds=60)
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("device_tracker.old_device", STATE_HOME, {"host_name": "old"}),
+                {"last_seen": recent.isoformat()},
+            )
+        ],
+    )
+
+    await _setup(hass, entry)
+
+    # Not in the scan, but seen a minute ago: still within consider_home
+    assert hass.states.get("device_tracker.old_device").state == STATE_HOME
+
+
+async def test_last_seen_long_ago_is_away_after_a_restart(
+    hass: HomeAssistant, mock_scan: AsyncMock
+) -> None:
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "device_tracker", DOMAIN, MAC_OLD, config_entry=entry, suggested_object_id="old_device"
+    )
+    long_ago = dt_util.utcnow() - timedelta(days=2)
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("device_tracker.old_device", STATE_HOME, {"host_name": "old"}),
+                {"last_seen": long_ago.isoformat()},
+            )
+        ],
+    )
+
+    await _setup(hass, entry)
+
+    state = hass.states.get("device_tracker.old_device")
+    assert state.state == STATE_NOT_HOME
+    assert state.attributes["last_seen"] == long_ago.isoformat()
 
 
 async def test_devices_disabled_option(hass: HomeAssistant, mock_scan: AsyncMock) -> None:

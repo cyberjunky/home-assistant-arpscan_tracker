@@ -35,7 +35,7 @@ Each tracked device exposes these attributes:
 | `mac` | MAC address of the device |
 | `ip` | Current IP address |
 | `vendor` | Device manufacturer (from OUI database) |
-| `last_seen` | Timestamp of last detection |
+| `last_seen` | When the device was last detected. Only on a device that is away: at home it is seen with every scan |
 
 ## Screenshots
 
@@ -263,7 +263,6 @@ template:
         attributes:
           ip: "{{ state_attr('device_tracker.arpscan_tracker_1c697a658c2', 'ip') }}"
           mac: "{{ state_attr('device_tracker.arpscan_tracker_1c697a658c2', 'mac') }}"
-          last_seen: "{{ state_attr('device_tracker.arpscan_tracker_1c697a658c2', 'last_seen') }}"
 ```
 
 This creates a `binary_sensor.server_online` entity with:

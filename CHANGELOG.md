@@ -1,5 +1,10 @@
 ## Changelog
 
+### 2.2.3
+
+- Far fewer state writes: `last_seen` is no longer refreshed in the attributes of a device that is home. It was updated with every scan, which made every scan a new state for each device, written to the recorder every 15 seconds. The attribute now only shows on a device that is away, where it gives the time the device was last seen and stays fixed. Home/away detection and "consider home" are unchanged, also across a restart
+- A template that reads `last_seen` of a device that is home gets nothing now
+
 ### 2.2.2
 
 - Less traffic for devices that are away: between sweeps, a known device that doesn't answer its direct ARP request is no longer asked three times before it is woken and asked again; it is asked once. Detection is unchanged, because a device that misses that request is still woken and asked three more times in the same scan
