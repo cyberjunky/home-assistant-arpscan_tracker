@@ -2,6 +2,7 @@
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,7 +14,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -33,6 +34,22 @@ _LOGGER = logging.getLogger(__name__)
 
 # The coordinator does all updates
 PARALLEL_UPDATES = 0
+
+
+@dataclass
+class LastSeenData(ExtraStoredData):
+    """When a device was last seen, kept over a restart.
+
+    Not in the state: there it would change with every scan, and every change of an
+    attribute is a new state for the recorder to store.
+    """
+
+    last_seen: datetime | None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return it as it is stored."""
+        return {ATTR_LAST_SEEN: self.last_seen.isoformat() if self.last_seen else None}
+
 
 # Matches names produced by the old "IP address with dots replaced by
 # underscores" fallback (e.g. "192_168_1_5"). Treated as unset, since an IP
@@ -188,13 +205,22 @@ class ArpScanDeviceTracker(CoordinatorEntity[ArpScanCoordinator], RestoreEntity,
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the vendor and when the device was last seen."""
+        """Return the vendor and, for a device that is away, when it was last seen.
+
+        A device that is home is seen with every scan: showing that would write a new
+        state every 15 seconds. Away, the moment stands still.
+        """
         attrs: dict[str, Any] = {}
         if self._vendor:
             attrs[ATTR_VENDOR] = self._vendor
-        if self._last_seen:
+        if self._last_seen and not self.is_connected:
             attrs[ATTR_LAST_SEEN] = self._last_seen.isoformat()
         return attrs
+
+    @property
+    def extra_restore_state_data(self) -> LastSeenData:
+        """Return when the device was last seen, to pick up after a restart."""
+        return LastSeenData(self._last_seen)
 
     def _update_from_scan(self) -> None:
         """Take over the latest successful scan result."""
@@ -213,10 +239,16 @@ class ArpScanDeviceTracker(CoordinatorEntity[ArpScanCoordinator], RestoreEntity,
 
     async def async_added_to_hass(self) -> None:
         """Restore when the device was last seen, then follow the scans."""
-        if (last_state := await self.async_get_last_state()) is not None:
-            last_seen = last_state.attributes.get(ATTR_LAST_SEEN)
-            if self._last_seen is None and isinstance(last_seen, str):
+        last_state = await self.async_get_last_state()
+        if self._last_seen is None:
+            last_seen = None
+            if (stored := await self.async_get_last_extra_data()) is not None:
+                last_seen = stored.as_dict().get(ATTR_LAST_SEEN)
+            if last_seen is None and last_state is not None:
+                last_seen = last_state.attributes.get(ATTR_LAST_SEEN)
+            if isinstance(last_seen, str):
                 self._last_seen = dt_util.parse_datetime(last_seen)
+        if last_state is not None:
             if self.hostname is None:
                 self._attr_hostname = last_state.attributes.get(_ATTR_HOST_NAME)
             if self._vendor is None:
