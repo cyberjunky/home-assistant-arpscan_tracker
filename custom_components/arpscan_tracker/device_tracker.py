@@ -188,7 +188,7 @@ async def async_setup_entry(
     remove_after = timedelta(days=remove_after_days)
 
     @callback
-    def async_remove_stale_devices(_now: datetime | None = None) -> None:
+    def async_remove_stale_devices(_now: datetime) -> None:
         """Remove the devices not seen for remove_after.
 
         Nothing is removed while scans fail: then no device is seen, also
