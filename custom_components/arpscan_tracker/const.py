@@ -31,7 +31,7 @@ DEFAULT_IGNORE_PRIVATE_MACS: Final = False
 
 SCAN_INTERVAL: Final = timedelta(seconds=15)
 
-# How often devices not seen for "Remove devices after" are looked for
+# How often devices not seen for "Remove Devices Not Seen For" days are looked for
 STALE_DEVICE_CHECK_INTERVAL: Final = timedelta(hours=1)
 
 # Largest network scanned by broadcast; every address gets an ARP request
