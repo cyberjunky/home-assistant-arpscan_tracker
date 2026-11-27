@@ -16,6 +16,7 @@ CONF_HOSTS: Final = "hosts"
 CONF_DEVICES_ENABLED: Final = "devices_enabled"
 CONF_TRACK_NEW_DEVICES: Final = "track_new_devices"
 CONF_REMOVE_AFTER_DAYS: Final = "remove_after_days"
+CONF_IGNORE_PRIVATE_MACS: Final = "ignore_private_macs"
 
 # Options removed in config entry version 1.2
 LEGACY_OPTIONS: Final = ("scan_interval", "timeout")
@@ -26,6 +27,7 @@ DEFAULT_RESOLVE_HOSTNAMES: Final = True
 DEFAULT_DEVICES_ENABLED: Final = True
 DEFAULT_TRACK_NEW_DEVICES: Final = True
 DEFAULT_REMOVE_AFTER_DAYS: Final = 0  # never
+DEFAULT_IGNORE_PRIVATE_MACS: Final = False
 
 SCAN_INTERVAL: Final = timedelta(seconds=15)
 

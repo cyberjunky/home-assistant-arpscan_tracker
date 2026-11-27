@@ -23,10 +23,12 @@ from .const import (
     ATTR_VENDOR,
     CONF_CONSIDER_HOME,
     CONF_DEVICES_ENABLED,
+    CONF_IGNORE_PRIVATE_MACS,
     CONF_REMOVE_AFTER_DAYS,
     CONF_TRACK_NEW_DEVICES,
     DEFAULT_CONSIDER_HOME,
     DEFAULT_DEVICES_ENABLED,
+    DEFAULT_IGNORE_PRIVATE_MACS,
     DEFAULT_REMOVE_AFTER_DAYS,
     DEFAULT_TRACK_NEW_DEVICES,
     DOMAIN,
@@ -65,6 +67,16 @@ _MAC_RE = re.compile(r"^[0-9a-f]{2}(?::[0-9a-f]{2}){5}$")
 _ATTR_HOST_NAME = "host_name"
 
 
+def is_private_mac(mac: str) -> bool:
+    """Return True for a locally administered MAC address, like a private Wi-Fi address.
+
+    Phones, laptops, containers and VMs pick these themselves rather than using
+    the address burned in by the manufacturer. The second-least-significant bit
+    of the first octet is set, so the second hex digit is 2, 6, A or E.
+    """
+    return bool(int(mac[:2], 16) & 0x02)
+
+
 def _device_info(
     hass: HomeAssistant,
     entry: ArpScanConfigEntry,
@@ -101,6 +113,7 @@ async def async_setup_entry(
     devices_enabled = entry.options.get(CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED)
     track_new_devices = entry.options.get(CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES)
     remove_after_days = entry.options.get(CONF_REMOVE_AFTER_DAYS, DEFAULT_REMOVE_AFTER_DAYS)
+    ignore_private_macs = entry.options.get(CONF_IGNORE_PRIVATE_MACS, DEFAULT_IGNORE_PRIVATE_MACS)
     ent_reg = er.async_get(hass)
     tracked_macs: set[str] = set()
     entities: dict[str, ArpScanDeviceTracker] = {}
@@ -148,6 +161,11 @@ async def async_setup_entry(
         new_entities: list[ArpScanDeviceTracker] = []
         for mac in coordinator.data:
             if mac in tracked_macs:
+                continue
+            if ignore_private_macs and is_private_mac(mac):
+                # Skipped for good (until the options change and reload the entry)
+                tracked_macs.add(mac)
+                _LOGGER.debug("Not tracking %s, a private (randomised) MAC address", mac)
                 continue
             # The same device can be seen on several configured interfaces;
             # its MAC is the unique ID, so only the first entry tracks it

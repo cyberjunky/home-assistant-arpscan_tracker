@@ -87,6 +87,7 @@ The other options are available afterwards under **Configure**. To change the in
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
 | **Enable Found Devices** | Enabled | Enable newly found device tracker entities by default |
 | **Track New Devices** | Enabled | Automatically create entities for newly discovered devices |
+| **Ignore Private MAC Addresses** | Disabled | Don't add new devices with a private (randomised) MAC address |
 | **Remove Devices Not Seen For** | 0 (never) | Remove devices that haven't been seen for this many days |
 | **Specific Hosts** | Empty | Probe only these IPs (for ZeroTier/VPN networks) |
 | **Include IPs** | Empty | Only track these IP addresses (comma-separated) |
@@ -167,7 +168,7 @@ If you see "Permission denied for ARP scan" in the logs:
 
 **Phones flapping between home and away**
 
-Phones in Wi-Fi power save (notably Samsung/Android and iPhones) ignore broadcast ARP requests while asleep. Once a phone has been seen, every scan that misses it sends it a wake-up packet and an ARP request addressed to the phone itself, which it answers far more reliably. A phone that ignores all traffic in deep sleep can still drop out; raise **Consider Home** for those. Phones that use a new random Wi-Fi MAC address on every connection show up as a new device each time; use a fixed (per-network) private address instead.
+Phones in Wi-Fi power save (notably Samsung/Android and iPhones) ignore broadcast ARP requests while asleep. Once a phone has been seen, every scan that misses it sends it a wake-up packet and an ARP request addressed to the phone itself, which it answers far more reliably. A phone that ignores all traffic in deep sleep can still drop out; raise **Consider Home** for those. Phones that use a new random Wi-Fi MAC address on every connection show up as a new device each time; use a fixed (per-network) private address instead. **Remove Devices Not Seen For** cleans up the ones left behind. **Ignore Private MAC Addresses** stops adding devices with a private address altogether, but leave it off if you track phones: iPhones, Android phones and Windows use a private address by default, mostly the same one on a network.
 
 **Devices are unavailable**
 
