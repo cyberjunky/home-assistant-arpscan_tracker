@@ -76,7 +76,7 @@ rules:
     comment: There are no issues the user can repair.
   stale-devices:
     status: done
-    comment: Devices can be removed by the user; a device is never known to be gone for good.
+    comment: Devices can be removed by the user, and automatically once not seen for the number of days set in the options (off by default).
 
   # Platinum
   async-dependency:

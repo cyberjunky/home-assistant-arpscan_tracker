@@ -19,10 +19,13 @@ from pytest_homeassistant.common import (
 from custom_components.arpscan_tracker.const import (
     CONF_CONSIDER_HOME,
     CONF_DEVICES_ENABLED,
+    CONF_REMOVE_AFTER_DAYS,
     CONF_TRACK_NEW_DEVICES,
     DOMAIN,
     SCAN_INTERVAL,
+    STALE_DEVICE_CHECK_INTERVAL,
 )
+from custom_components.arpscan_tracker.probe import ScanError
 
 from .conftest import MAC_LAPTOP, MAC_PHONE, FakeNetwork, make_entry, scan_result
 
@@ -405,3 +408,135 @@ async def test_device_seen_by_two_entries(hass: HomeAssistant, mock_scan: AsyncM
     ent_reg = er.async_get(hass)
     assert ent_reg.async_get(_entity_id(hass, MAC_PHONE)).config_entry_id == first.entry_id
     assert er.async_entries_for_config_entry(ent_reg, second.entry_id) == []
+
+
+async def _advance(hass: HomeAssistant, freezer: FrozenDateTimeFactory, period: timedelta) -> None:
+    freezer.tick(period)
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_device_not_seen_for_days_is_removed(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """A device gone for longer than remove_after_days loses its tracker and device.
+
+    Should it show up again, it is added back as a new device.
+    """
+    entry = make_entry(**{CONF_REMOVE_AFTER_DAYS: 1})
+    await _setup(hass, entry)
+    laptop_id = _entity_id(hass, MAC_LAPTOP)
+    mock_scan.return_value = [scan_result()[0]]
+
+    await _advance(hass, freezer, timedelta(hours=23))
+    assert _entity_id(hass, MAC_LAPTOP) == laptop_id
+
+    await _advance(hass, freezer, STALE_DEVICE_CHECK_INTERVAL + timedelta(minutes=1))
+    assert _entity_id(hass, MAC_LAPTOP) is None
+    assert hass.states.get(laptop_id) is None
+    assert _device(hass, entry, MAC_LAPTOP) is None
+    # The phone answers every scan
+    assert hass.states.get("device_tracker.phone").state == STATE_HOME
+    assert _device(hass, entry, MAC_PHONE) is not None
+
+    mock_scan.return_value = scan_result()
+    await _advance(hass, freezer, SCAN_INTERVAL)
+    assert hass.states.get(_entity_id(hass, MAC_LAPTOP)).state == STATE_HOME
+    assert _device(hass, entry, MAC_LAPTOP) is not None
+
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_devices_kept_while_scans_fail(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """While scans fail no device is seen, so none is removed for that."""
+    entry = make_entry(**{CONF_REMOVE_AFTER_DAYS: 1})
+    await _setup(hass, entry)
+    mock_scan.side_effect = ScanError("interface down")
+
+    await _advance(hass, freezer, timedelta(days=2))
+
+    assert _entity_id(hass, MAC_PHONE) is not None
+    assert _entity_id(hass, MAC_LAPTOP) is not None
+
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_devices_kept_by_default(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """Without remove_after_days a device is kept, however long it is away."""
+    entry = make_entry()
+    await _setup(hass, entry)
+    mock_scan.return_value = [scan_result()[0]]
+
+    await _advance(hass, freezer, timedelta(days=400))
+
+    assert hass.states.get(_entity_id(hass, MAC_LAPTOP)).state == STATE_NOT_HOME
+
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_device_without_last_seen_is_kept(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """A restored device with no known last_seen is not removed; it may be away briefly."""
+    entry = make_entry(**{CONF_REMOVE_AFTER_DAYS: 1})
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "device_tracker", DOMAIN, MAC_OLD, config_entry=entry, suggested_object_id="old_device"
+    )
+    await _setup(hass, entry)
+
+    await _advance(hass, freezer, timedelta(days=2))
+
+    assert _entity_id(hass, MAC_OLD) == "device_tracker.old_device"
+
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_restored_device_seen_long_ago_is_removed(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """The last_seen kept across a restart counts; the device goes at the first check."""
+    entry = make_entry(**{CONF_REMOVE_AFTER_DAYS: 30})
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "device_tracker", DOMAIN, MAC_OLD, config_entry=entry, suggested_object_id="old_device"
+    )
+    long_ago = dt_util.utcnow() - timedelta(days=31)
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("device_tracker.old_device", STATE_NOT_HOME, {"host_name": "old"}),
+                {"last_seen": long_ago.isoformat()},
+            )
+        ],
+    )
+    await _setup(hass, entry)
+    assert _entity_id(hass, MAC_OLD) == "device_tracker.old_device"
+
+    await _advance(hass, freezer, STALE_DEVICE_CHECK_INTERVAL)
+
+    assert _entity_id(hass, MAC_OLD) is None
+    assert hass.states.get("device_tracker.old_device") is None
+
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_disabled_tracker_is_kept(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, mock_scan: AsyncMock
+) -> None:
+    """A disabled tracker doesn't follow the scans, so its device is never stale."""
+    entry = make_entry(**{CONF_REMOVE_AFTER_DAYS: 1, CONF_DEVICES_ENABLED: False})
+    await _setup(hass, entry)
+    mock_scan.return_value = [scan_result()[0]]
+
+    await _advance(hass, freezer, timedelta(days=2))
+
+    assert _entity_id(hass, MAC_LAPTOP) is not None
+    assert _device(hass, entry, MAC_LAPTOP) is not None
+
+    await hass.config_entries.async_unload(entry.entry_id)

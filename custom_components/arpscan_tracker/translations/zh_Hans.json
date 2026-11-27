@@ -41,6 +41,7 @@
                     "resolve_hostnames": "解析主机名 (DNS)",
                     "devices_enabled": "启用新发现的设备",
                     "track_new_devices": "追踪新设备",
+                    "remove_after_days": "移除长期未出现的设备（天）",
                     "include": "包含 IP",
                     "exclude": "排除 IP",
                     "hosts": "ZeroTier/VPN 主机 (IP)"
@@ -49,6 +50,7 @@
                     "consider_home": "设备离开后多久判定为不在家（10-1800 秒）",
                     "devices_enabled": "默认启用所有新发现的设备追踪实体。关闭后，新设备仍会添加到实体注册表，但默认禁用。",
                     "track_new_devices": "自动为新发现的设备创建设备追踪实体。禁用时，仅追踪已知设备。",
+                    "remove_after_days": "移除超过此天数未出现的设备，例如旧路由器或更换了私有 MAC 地址的手机。被移除的设备再次出现时，如果开启了追踪新设备，会重新添加。0 表示保留所有设备。",
                     "include": "仅追踪这些 IP 地址的设备（逗号分隔列表）",
                     "exclude": "跳过追踪这些 IP 地址的设备（逗号分隔列表）"
                 }

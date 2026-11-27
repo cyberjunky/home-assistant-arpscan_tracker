@@ -14,6 +14,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -22,11 +23,14 @@ from .const import (
     ATTR_VENDOR,
     CONF_CONSIDER_HOME,
     CONF_DEVICES_ENABLED,
+    CONF_REMOVE_AFTER_DAYS,
     CONF_TRACK_NEW_DEVICES,
     DEFAULT_CONSIDER_HOME,
     DEFAULT_DEVICES_ENABLED,
+    DEFAULT_REMOVE_AFTER_DAYS,
     DEFAULT_TRACK_NEW_DEVICES,
     DOMAIN,
+    STALE_DEVICE_CHECK_INTERVAL,
 )
 from .coordinator import ArpScanConfigEntry, ArpScanCoordinator
 
@@ -96,19 +100,22 @@ async def async_setup_entry(
     consider_home = timedelta(seconds=entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME))
     devices_enabled = entry.options.get(CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED)
     track_new_devices = entry.options.get(CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES)
+    remove_after_days = entry.options.get(CONF_REMOVE_AFTER_DAYS, DEFAULT_REMOVE_AFTER_DAYS)
     ent_reg = er.async_get(hass)
     tracked_macs: set[str] = set()
+    entities: dict[str, ArpScanDeviceTracker] = {}
 
     def create_entity(mac: str, fallback_name: str | None = None) -> ArpScanDeviceTracker:
         tracked_macs.add(mac)
         device = coordinator.data.get(mac, {})
-        return ArpScanDeviceTracker(
+        entity = entities[mac] = ArpScanDeviceTracker(
             coordinator,
             mac,
             _device_info(hass, entry, mac, device.get("hostname"), fallback_name),
             consider_home,
             devices_enabled,
         )
+        return entity
 
     # Restore the devices found in previous runs, also while they are offline
     restored: list[ArpScanDeviceTracker] = []
@@ -158,6 +165,46 @@ async def async_setup_entry(
     async_add_new_entities()
     entry.async_on_unload(coordinator.async_add_listener(async_add_new_entities))
 
+    if not remove_after_days:
+        return
+    remove_after = timedelta(days=remove_after_days)
+
+    @callback
+    def async_remove_stale_devices(_now: datetime | None = None) -> None:
+        """Remove the devices not seen for remove_after.
+
+        Nothing is removed while scans fail: then no device is seen, also
+        the ones still there. A device without a known last_seen is kept,
+        as is one with a disabled tracker, which doesn't follow the scans.
+        """
+        if not coordinator.last_update_success:
+            return
+        dev_reg = dr.async_get(hass)
+        now = dt_util.utcnow()
+        for mac, entity in list(entities.items()):
+            if entity.hass is None:
+                continue
+            last_seen = entity.last_seen
+            if mac in coordinator.data or last_seen is None or now - last_seen <= remove_after:
+                continue
+            _LOGGER.info("Removing %s, not seen since %s", mac, last_seen.isoformat())
+            del entities[mac]
+            # Should it show up again, it is added back as a new device
+            tracked_macs.discard(mac)
+            reg_entry = ent_reg.async_get(entity.entity_id) if entity.entity_id else None
+            if reg_entry is None:
+                continue
+            ent_reg.async_remove(reg_entry.entity_id)
+            # Then the device, unless another integration (a router) shares it
+            if reg_entry.device_id and dev_reg.async_get(reg_entry.device_id):
+                dev_reg.async_update_device(
+                    reg_entry.device_id, remove_config_entry_id=entry.entry_id
+                )
+
+    entry.async_on_unload(
+        async_track_time_interval(hass, async_remove_stale_devices, STALE_DEVICE_CHECK_INTERVAL)
+    )
+
 
 class ArpScanDeviceTracker(CoordinatorEntity[ArpScanCoordinator], RestoreEntity, ScannerEntity):
     """A device tracked via ARP scan."""
@@ -193,6 +240,11 @@ class ArpScanDeviceTracker(CoordinatorEntity[ArpScanCoordinator], RestoreEntity,
         another integration, which would leave found devices disabled.
         """
         return self._devices_enabled
+
+    @property
+    def last_seen(self) -> datetime | None:
+        """Return when the device last answered a scan."""
+        return self._last_seen
 
     @property
     def is_connected(self) -> bool:
