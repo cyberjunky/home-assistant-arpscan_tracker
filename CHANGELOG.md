@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2.3.0
+
+- New option **Remove Devices Not Seen For (days)**: removes the tracker and device of a device that hasn't answered a scan for that many days, such as an old router or a phone that changed its private MAC address. Checked every hour, never while scans fail. A removed device that shows up again is added back as a new device when new devices are tracked. Off (0) by default, so nothing changes until it is set (#159)
+
 ### 2.2.3
 
 - Far fewer state writes: `last_seen` is no longer refreshed in the attributes of a device that is home. It was updated with every scan, which made every scan a new state for each device, written to the recorder every 15 seconds. The attribute now only shows on a device that is away, where it gives the time the device was last seen and stays fixed. Home/away detection and "consider home" are unchanged, also across a restart

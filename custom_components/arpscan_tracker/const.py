@@ -15,6 +15,7 @@ CONF_RESOLVE_HOSTNAMES: Final = "resolve_hostnames"
 CONF_HOSTS: Final = "hosts"
 CONF_DEVICES_ENABLED: Final = "devices_enabled"
 CONF_TRACK_NEW_DEVICES: Final = "track_new_devices"
+CONF_REMOVE_AFTER_DAYS: Final = "remove_after_days"
 
 # Options removed in config entry version 1.2
 LEGACY_OPTIONS: Final = ("scan_interval", "timeout")
@@ -24,8 +25,12 @@ DEFAULT_CONSIDER_HOME: Final = 180  # seconds
 DEFAULT_RESOLVE_HOSTNAMES: Final = True
 DEFAULT_DEVICES_ENABLED: Final = True
 DEFAULT_TRACK_NEW_DEVICES: Final = True
+DEFAULT_REMOVE_AFTER_DAYS: Final = 0  # never
 
 SCAN_INTERVAL: Final = timedelta(seconds=15)
+
+# How often devices not seen for "Remove devices after" are looked for
+STALE_DEVICE_CHECK_INTERVAL: Final = timedelta(hours=1)
 
 # Largest network scanned by broadcast; every address gets an ARP request
 # (with a retry) on every sweep. 1024 addresses is a /22.

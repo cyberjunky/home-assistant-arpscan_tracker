@@ -87,6 +87,7 @@ The other options are available afterwards under **Configure**. To change the in
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
 | **Enable Found Devices** | Enabled | Enable newly found device tracker entities by default |
 | **Track New Devices** | Enabled | Automatically create entities for newly discovered devices |
+| **Remove Devices Not Seen For** | 0 (never) | Remove devices that haven't been seen for this many days |
 | **Specific Hosts** | Empty | Probe only these IPs (for ZeroTier/VPN networks) |
 | **Include IPs** | Empty | Only track these IP addresses (comma-separated) |
 | **Exclude IPs** | Empty | Skip tracking these IP addresses (comma-separated) |
@@ -110,7 +111,7 @@ After initial setup, you can modify settings via:
 
 > [!NOTE]
 > Every device tracker gets a device, identified by its MAC address. If another integration (like your router) already knows that MAC, Home Assistant links the tracker to that device.
-> Devices you no longer need can be deleted from the device page.
+> Devices you no longer need can be deleted from the device page, or removed automatically with **Remove Devices Not Seen For**: a device that hasn't answered a scan for that many days is removed (checked every hour, never while scans fail). A removed device that shows up again is added back as a new device when **Track New Devices** is on.
 > When **Enable Found Devices** is off, new device trackers are added but disabled by default—enable them in the Home Assistant UI.
 > When **Track New Devices** is off, only previously known devices are tracked—new discoveries are ignored.
 

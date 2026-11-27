@@ -18,6 +18,7 @@ from custom_components.arpscan_tracker.const import (
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
+    CONF_REMOVE_AFTER_DAYS,
     CONF_RESOLVE_HOSTNAMES,
     CONF_TRACK_NEW_DEVICES,
     DOMAIN,
@@ -246,6 +247,7 @@ OPTIONS_INPUT = {
     CONF_RESOLVE_HOSTNAMES: False,
     CONF_DEVICES_ENABLED: False,
     CONF_TRACK_NEW_DEVICES: False,
+    CONF_REMOVE_AFTER_DAYS: 90,
 }
 
 

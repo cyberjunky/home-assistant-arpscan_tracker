@@ -16,10 +16,12 @@ from .const import (
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
+    CONF_REMOVE_AFTER_DAYS,
     CONF_RESOLVE_HOSTNAMES,
     CONF_TRACK_NEW_DEVICES,
     DEFAULT_CONSIDER_HOME,
     DEFAULT_DEVICES_ENABLED,
+    DEFAULT_REMOVE_AFTER_DAYS,
     DEFAULT_RESOLVE_HOSTNAMES,
     DEFAULT_TRACK_NEW_DEVICES,
     DOMAIN,
@@ -168,6 +170,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_RESOLVE_HOSTNAMES: DEFAULT_RESOLVE_HOSTNAMES,
                         CONF_DEVICES_ENABLED: DEFAULT_DEVICES_ENABLED,
                         CONF_TRACK_NEW_DEVICES: DEFAULT_TRACK_NEW_DEVICES,
+                        CONF_REMOVE_AFTER_DAYS: DEFAULT_REMOVE_AFTER_DAYS,
                         CONF_INCLUDE: [],
                         CONF_EXCLUDE: [],
                         CONF_HOSTS: hosts,
@@ -259,6 +262,7 @@ class ArpScanOptionsFlow(OptionsFlow):
                         CONF_RESOLVE_HOSTNAMES: user_input[CONF_RESOLVE_HOSTNAMES],
                         CONF_DEVICES_ENABLED: user_input[CONF_DEVICES_ENABLED],
                         CONF_TRACK_NEW_DEVICES: user_input[CONF_TRACK_NEW_DEVICES],
+                        CONF_REMOVE_AFTER_DAYS: user_input[CONF_REMOVE_AFTER_DAYS],
                         **lists,
                     }
                 )
@@ -282,6 +286,10 @@ class ArpScanOptionsFlow(OptionsFlow):
                     CONF_TRACK_NEW_DEVICES,
                     default=options.get(CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES),
                 ): bool,
+                vol.Required(
+                    CONF_REMOVE_AFTER_DAYS,
+                    default=options.get(CONF_REMOVE_AFTER_DAYS, DEFAULT_REMOVE_AFTER_DAYS),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=3650)),
                 # Suggested values rather than defaults: a default would be
                 # re-applied when the user clears the field, making it
                 # impossible to empty these lists again.

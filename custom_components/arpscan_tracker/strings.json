@@ -50,6 +50,7 @@
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
                     "devices_enabled": "Enable Found Devices",
                     "track_new_devices": "Track New Devices",
+                    "remove_after_days": "Remove Devices Not Seen For (days)",
                     "include": "Include IPs",
                     "exclude": "Exclude IPs",
                     "hosts": "ZeroTier/VPN Hosts (IPs)"
@@ -59,6 +60,7 @@
                     "resolve_hostnames": "Look up device hostnames via reverse DNS (cached)",
                     "devices_enabled": "Enable newly found device tracker entities by default. When disabled, new entities are added but disabled in the entity registry.",
                     "track_new_devices": "Automatically create device tracker entities for newly discovered devices. When disabled, only previously known devices are tracked.",
+                    "remove_after_days": "Remove a device that hasn't been seen for this many days, like an old router or a phone that changed its private MAC address. A removed device that shows up again is added back if new devices are tracked. 0 keeps every device.",
                     "include": "Only track devices with these IP addresses (comma-separated list)",
                     "exclude": "Skip tracking devices with these IP addresses (comma-separated list)",
                     "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.). Comma-separated list."
