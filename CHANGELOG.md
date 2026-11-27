@@ -3,6 +3,7 @@
 ### 2.3.0
 
 - New option **Remove Devices Not Seen For (days)**: removes the tracker and device of a device that hasn't answered a scan for that many days, such as an old router or a phone that changed its private MAC address. Checked every hour, never while scans fail. A removed device that shows up again is added back as a new device when new devices are tracked. Off (0) by default, so nothing changes until it is set (#159)
+- New option **Ignore Private MAC Addresses**: no tracker is added for a new device with a private (randomised, locally administered) MAC address. Off by default: phones use a private address by default, most of them the same one on a network, and are the devices people track. Devices already tracked are kept (#158)
 
 ### 2.2.3
 
