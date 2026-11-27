@@ -15,6 +15,7 @@ from custom_components.arpscan_tracker.const import (
     CONF_DEVICES_ENABLED,
     CONF_EXCLUDE,
     CONF_HOSTS,
+    CONF_IGNORE_PRIVATE_MACS,
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
@@ -248,6 +249,7 @@ OPTIONS_INPUT = {
     CONF_DEVICES_ENABLED: False,
     CONF_TRACK_NEW_DEVICES: False,
     CONF_REMOVE_AFTER_DAYS: 90,
+    CONF_IGNORE_PRIVATE_MACS: True,
 }
 
 

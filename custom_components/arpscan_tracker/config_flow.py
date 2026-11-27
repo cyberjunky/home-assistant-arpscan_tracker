@@ -13,6 +13,7 @@ from .const import (
     CONF_DEVICES_ENABLED,
     CONF_EXCLUDE,
     CONF_HOSTS,
+    CONF_IGNORE_PRIVATE_MACS,
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
@@ -21,6 +22,7 @@ from .const import (
     CONF_TRACK_NEW_DEVICES,
     DEFAULT_CONSIDER_HOME,
     DEFAULT_DEVICES_ENABLED,
+    DEFAULT_IGNORE_PRIVATE_MACS,
     DEFAULT_REMOVE_AFTER_DAYS,
     DEFAULT_RESOLVE_HOSTNAMES,
     DEFAULT_TRACK_NEW_DEVICES,
@@ -170,6 +172,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_RESOLVE_HOSTNAMES: DEFAULT_RESOLVE_HOSTNAMES,
                         CONF_DEVICES_ENABLED: DEFAULT_DEVICES_ENABLED,
                         CONF_TRACK_NEW_DEVICES: DEFAULT_TRACK_NEW_DEVICES,
+                        CONF_IGNORE_PRIVATE_MACS: DEFAULT_IGNORE_PRIVATE_MACS,
                         CONF_REMOVE_AFTER_DAYS: DEFAULT_REMOVE_AFTER_DAYS,
                         CONF_INCLUDE: [],
                         CONF_EXCLUDE: [],
@@ -262,6 +265,7 @@ class ArpScanOptionsFlow(OptionsFlow):
                         CONF_RESOLVE_HOSTNAMES: user_input[CONF_RESOLVE_HOSTNAMES],
                         CONF_DEVICES_ENABLED: user_input[CONF_DEVICES_ENABLED],
                         CONF_TRACK_NEW_DEVICES: user_input[CONF_TRACK_NEW_DEVICES],
+                        CONF_IGNORE_PRIVATE_MACS: user_input[CONF_IGNORE_PRIVATE_MACS],
                         CONF_REMOVE_AFTER_DAYS: user_input[CONF_REMOVE_AFTER_DAYS],
                         **lists,
                     }
@@ -285,6 +289,10 @@ class ArpScanOptionsFlow(OptionsFlow):
                 vol.Required(
                     CONF_TRACK_NEW_DEVICES,
                     default=options.get(CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES),
+                ): bool,
+                vol.Required(
+                    CONF_IGNORE_PRIVATE_MACS,
+                    default=options.get(CONF_IGNORE_PRIVATE_MACS, DEFAULT_IGNORE_PRIVATE_MACS),
                 ): bool,
                 vol.Required(
                     CONF_REMOVE_AFTER_DAYS,

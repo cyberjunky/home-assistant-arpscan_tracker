@@ -3,6 +3,7 @@
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
+import pytest
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.const import STATE_HOME, STATE_NOT_HOME
 from homeassistant.core import HomeAssistant, State
@@ -19,12 +20,14 @@ from pytest_homeassistant.common import (
 from custom_components.arpscan_tracker.const import (
     CONF_CONSIDER_HOME,
     CONF_DEVICES_ENABLED,
+    CONF_IGNORE_PRIVATE_MACS,
     CONF_REMOVE_AFTER_DAYS,
     CONF_TRACK_NEW_DEVICES,
     DOMAIN,
     SCAN_INTERVAL,
     STALE_DEVICE_CHECK_INTERVAL,
 )
+from custom_components.arpscan_tracker.device_tracker import is_private_mac
 from custom_components.arpscan_tracker.probe import ScanError
 
 from .conftest import MAC_LAPTOP, MAC_PHONE, FakeNetwork, make_entry, scan_result
@@ -540,3 +543,51 @@ async def test_disabled_tracker_is_kept(
     assert _device(hass, entry, MAC_LAPTOP) is not None
 
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+MAC_BURNED_IN = "a8:bb:cc:dd:ee:03"
+
+
+@pytest.mark.parametrize(
+    ("mac", "private"),
+    [
+        ("00:11:22:33:44:55", False),
+        ("a8:bb:cc:dd:ee:03", False),
+        ("fc:bb:cc:dd:ee:03", False),
+        ("02:00:00:00:00:01", True),
+        ("36:bb:cc:dd:ee:03", True),
+        ("aa:bb:cc:dd:ee:01", True),
+        ("de:bb:cc:dd:ee:03", True),
+    ],
+)
+def test_is_private_mac(mac: str, private: bool) -> None:
+    """The second hex digit 2, 6, A or E marks a locally administered address."""
+    assert is_private_mac(mac) is private
+
+
+async def test_private_macs_ignored(hass: HomeAssistant, mock_scan: AsyncMock) -> None:
+    """With ignore_private_macs a new device with a private MAC gets no tracker.
+
+    A device already tracked under a private MAC is kept.
+    """
+    entry = make_entry(**{CONF_IGNORE_PRIVATE_MACS: True})
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "device_tracker", DOMAIN, MAC_OLD, config_entry=entry, suggested_object_id="old_device"
+    )
+    mock_scan.return_value = [
+        *scan_result(),
+        {"ip": "192.168.1.20", "mac": MAC_BURNED_IN, "vendor": "X", "hostname": "tv"},
+    ]
+
+    await _setup(hass, entry)
+
+    assert _entity_id(hass, MAC_PHONE) is None
+    assert _entity_id(hass, MAC_LAPTOP) is None
+    assert hass.states.get("device_tracker.tv").state == STATE_HOME
+    assert hass.states.get("device_tracker.old_device") is not None
+
+    # Still not added on later scans
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert _entity_id(hass, MAC_PHONE) is None
